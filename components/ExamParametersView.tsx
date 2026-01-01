@@ -23,7 +23,7 @@ const ExamParametersView: React.FC<ExamParametersViewProps> = ({
           <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest mb-1">Global Reliability (α)</h3>
           <p className="text-5xl font-black mb-4">{examParameters.reliability}</p>
           <p className="text-xs opacity-80 leading-relaxed">
-            Calculated using Cronbach's Alpha. A value > 0.7 indicates high internal consistency and test reliability.
+            Calculated using Cronbach's Alpha. A value &gt; 0.7 indicates high internal consistency and test reliability.
           </p>
           <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between text-xs">
             <span>Method: Internal Consistency</span>
