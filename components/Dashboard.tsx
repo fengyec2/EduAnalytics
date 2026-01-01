@@ -104,27 +104,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return { subjectStats: stats, reliability: parseFloat(reliability.toFixed(2)) };
   }, [periodData, data.subjects]);
 
-  const periodSchoolStats = useMemo(() => {
-    if (periodData.length === 0) return null;
-    const dist = [
-      { name: 'Excellent (≥90)', value: 0, color: '#10b981' },
-      { name: 'Good (80-89)', value: 0, color: '#3b82f6' },
-      { name: 'Fair (70-79)', value: 0, color: '#f59e0b' },
-      { name: 'Pass (60-69)', value: 0, color: '#6366f1' },
-      { name: 'Fail (<60)', value: 0, color: '#ef4444' },
-    ];
-    periodData.forEach(s => {
-      const avg = s.currentAverage;
-      if (avg >= 90) dist[0].value++;
-      else if (avg >= 80) dist[1].value++;
-      else if (avg >= 70) dist[2].value++;
-      else if (avg >= 60) dist[3].value++;
-      else dist[4].value++;
-    });
-    const subjectAvgs = data.subjects.map(sub => ({ name: sub, avg: parseFloat((periodData.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / periodData.length).toFixed(2)) }));
-    return { distribution: dist.filter(d => d.value > 0), subjectAvgs };
-  }, [periodData, data.subjects]);
-
   const classComparisonData = useMemo(() => data.subjects.map(sub => {
     const entry: any = { name: sub };
     selectedClasses.forEach(cls => {
@@ -183,7 +162,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodSchoolStats={periodSchoolStats} />}
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodData={periodData} subjects={data.subjects} />}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
