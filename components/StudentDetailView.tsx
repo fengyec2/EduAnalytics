@@ -1,7 +1,6 @@
-
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
+import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, BarChart3 } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer } from './SharedComponents';
 
@@ -23,14 +22,15 @@ interface StudentDetailViewProps {
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
   studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks 
 }) => {
-  // 处理趋势图表数据
+  // 处理趋势图表数据，包含总分、年级平均分以及全校名次
   const chartData = useMemo(() => {
     if (!selectedStudent) return [];
     return selectedStudent.history.map(h => ({
       ...h,
-      gradeAvgTotal: gradeAveragesByPeriod[h.period] || 0
+      gradeAvgTotal: gradeAveragesByPeriod[h.period] || 0,
+      schoolRank: allHistoricalRanks[h.period]?.[selectedStudent.name] || null
     }));
-  }, [selectedStudent, gradeAveragesByPeriod]);
+  }, [selectedStudent, gradeAveragesByPeriod, allHistoricalRanks]);
 
   // 计算个人历史平均总分
   const historyMeanTotal = useMemo(() => {
@@ -218,6 +218,37 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
 
             <div className="lg:col-span-2 space-y-8">
+              {/* 全校名次趋势图 - Y轴反转 */}
+              <ChartContainer title="📉 School Ranking Trend (Upwards is Better)">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
+                    <YAxis 
+                      reversed 
+                      domain={['auto', 'auto']} 
+                      stroke="#94a3b8" 
+                      fontSize={12} 
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [`第 ${value} 名`, 'School Rank']}
+                    />
+                    <Legend verticalAlign="top" height={36}/>
+                    <Line 
+                      type="monotone" 
+                      dataKey="schoolRank" 
+                      name="School Rank" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={4} 
+                      dot={{r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff'}} 
+                      activeDot={{ r: 8 }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+
+              {/* 成绩对比曲线图 */}
               <ChartContainer title="📈 Performance vs Grade Average Curve">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
