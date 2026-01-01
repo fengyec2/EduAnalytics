@@ -40,7 +40,30 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     '特控': 600,
   });
 
-  // 计算每个周期的年级总分平均分 (用于学生详情页参考)
+  // 计算所有历史时期的全校排名映射 (Period -> StudentName -> Rank)
+  const allHistoricalRanks = useMemo(() => {
+    const periodRankMap: Record<string, Record<string, number>> = {};
+    
+    allPeriods.forEach(period => {
+      const periodStudents = data.students
+        .map(s => ({
+          name: s.name,
+          total: s.history.find(h => h.period === period)?.totalScore ?? -1
+        }))
+        .filter(s => s.total !== -1)
+        .sort((a, b) => b.total - a.total);
+      
+      const ranks: Record<string, number> = {};
+      periodStudents.forEach((s, idx) => {
+        ranks[s.name] = idx + 1;
+      });
+      periodRankMap[period] = ranks;
+    });
+    
+    return periodRankMap;
+  }, [data.students, allPeriods]);
+
+  // 计算每个周期的年级总分平均分
   const gradeAveragesByPeriod = useMemo(() => {
     const averages: Record<string, number> = {};
     allPeriods.forEach(period => {
@@ -83,13 +106,8 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     });
     snapshot.sort((a, b) => b.currentTotal - a.currentTotal);
     snapshot.forEach((s, idx) => (s as any).periodSchoolRank = idx + 1);
-    data.classes.forEach(cls => {
-      const classStudents = snapshot.filter(s => s.class === cls);
-      classStudents.sort((a, b) => b.currentTotal - a.currentTotal);
-      classStudents.forEach((s, idx) => (s as any).periodClassRank = idx + 1);
-    });
     return snapshot as any[];
-  }, [data.students, data.classes, selectedPeriod]);
+  }, [data.students, selectedPeriod]);
 
   const aboveLineCount = useMemo(() => {
     if (periodData.length === 0) return 0;
@@ -223,6 +241,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             selectedStudent={selectedStudent} 
             subjects={data.subjects} 
             gradeAveragesByPeriod={gradeAveragesByPeriod}
+            allHistoricalRanks={allHistoricalRanks}
           />
         )}
       </div>

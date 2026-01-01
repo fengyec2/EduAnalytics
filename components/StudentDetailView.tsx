@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Search, Filter, GraduationCap, TrendingUp, Table as TableIcon } from 'lucide-react';
+import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer } from './SharedComponents';
 
@@ -17,12 +17,13 @@ interface StudentDetailViewProps {
   selectedStudent: StudentRecord | undefined;
   subjects: string[];
   gradeAveragesByPeriod: Record<string, number>;
+  allHistoricalRanks: Record<string, Record<string, number>>;
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
-  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod 
+  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks 
 }) => {
-  // 处理趋势图表数据，注入年级总分平均值作为参考
+  // 处理趋势图表数据
   const chartData = useMemo(() => {
     if (!selectedStudent) return [];
     return selectedStudent.history.map(h => ({
@@ -37,6 +38,54 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     const sum = selectedStudent.history.reduce((acc, h) => acc + h.totalScore, 0);
     return sum / selectedStudent.history.length;
   }, [selectedStudent]);
+
+  // 核心算法：计算最新连续进退步情况
+  const streakInfo = useMemo(() => {
+    if (!selectedStudent || selectedStudent.history.length < 2) return null;
+
+    const history = selectedStudent.history;
+    const studentName = selectedStudent.name;
+    
+    // 获取完整的历史名次列表 (按时间顺序)
+    const rankList: number[] = history
+      .map(h => allHistoricalRanks[h.period]?.[studentName])
+      .filter((r): r is number => r !== undefined);
+
+    if (rankList.length < 2) return null;
+
+    // 确定最新一次考试的变动方向
+    const last = rankList[rankList.length - 1];
+    const prev = rankList[rankList.length - 2];
+    
+    if (last === prev) return { count: 0, type: 'stable', totalChange: 0, steps: [] };
+
+    // 进步判定：名次数值变小 (如 50 -> 40)
+    const isImproving = last < prev;
+    const type = isImproving ? 'improvement' : 'decline';
+    
+    let count = 0;
+    let totalChange = 0;
+    const steps: number[] = [];
+
+    // 从最后一次开始逆向回溯
+    for (let i = rankList.length - 1; i > 0; i--) {
+      const current = rankList[i];
+      const previous = rankList[i - 1];
+      const diff = previous - current; // 正值代表名次提升
+
+      // 如果当前变动方向与整体趋势一致
+      if ((isImproving && diff > 0) || (!isImproving && diff < 0)) {
+        count++;
+        totalChange += diff;
+        steps.unshift(diff);
+      } else {
+        // 发现反向变动，streak 结束
+        break;
+      }
+    }
+
+    return { count, type, totalChange, steps };
+  }, [selectedStudent, allHistoricalRanks]);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -87,6 +136,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-6">
+              {/* 基本信息卡片 */}
               <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-2xl shadow-xl text-white">
                 <div className="flex justify-between items-start mb-6">
                   <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
@@ -117,6 +167,54 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                    </div>
                 </div>
               </div>
+
+              {/* 进退步分析卡片 */}
+              {streakInfo && streakInfo.count > 0 && (
+                <div className={`p-6 rounded-2xl border shadow-sm transition-all animate-in slide-in-from-left-4 ${
+                  streakInfo.type === 'improvement' 
+                    ? 'bg-emerald-50 border-emerald-100' 
+                    : 'bg-rose-50 border-rose-100'
+                }`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-2 rounded-xl ${streakInfo.type === 'improvement' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                      <Flame className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${streakInfo.type === 'improvement' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        Recent Trend Analysis
+                      </p>
+                      <h4 className={`text-lg font-black ${streakInfo.type === 'improvement' ? 'text-emerald-900' : 'text-rose-900'}`}>
+                        连续{streakInfo.type === 'improvement' ? '进步' : '退步'} {streakInfo.count} 次
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-end">
+                      <span className="text-xs text-gray-500">总位次变动</span>
+                      <span className={`text-2xl font-black ${streakInfo.type === 'improvement' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {streakInfo.totalChange > 0 ? `+${streakInfo.totalChange}` : streakInfo.totalChange}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {streakInfo.steps.map((step, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 ${
+                            streakInfo.type === 'improvement' 
+                              ? 'bg-emerald-200 text-emerald-800' 
+                              : 'bg-rose-200 text-rose-800'
+                          }`}
+                        >
+                          {streakInfo.type === 'improvement' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {step > 0 ? `+${step}` : step}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="lg:col-span-2 space-y-8">
