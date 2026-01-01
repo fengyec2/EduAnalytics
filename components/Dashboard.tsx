@@ -66,6 +66,12 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return snapshot as any[];
   }, [data.students, data.classes, selectedPeriod]);
 
+  // 计算“特控上线人数”：即排名在 600 名以内的学生总数（与 SchoolView 默认阈值同步）
+  const aboveLineCount = useMemo(() => {
+    const threshold = 600;
+    return periodData.filter(s => s.periodSchoolRank <= threshold).length;
+  }, [periodData]);
+
   // Calculations for sub-views passed as props
   const examParameters = useMemo(() => {
     if (periodData.length === 0) return null;
@@ -139,7 +145,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Total Students" value={data.students.length.toString()} subtitle="Cohort Size" />
         <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title="Classes" value={data.classes.length.toString()} subtitle="Active Groups" />
-        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="Overall Pass" value={`${(data.students.filter(s => s.averageScore >= 60).length / data.students.length * 100).toFixed(0)}%`} subtitle="Grade Avg" />
+        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="特控上线人数" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
         <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Best Score" value={data.schoolStats.max.toString()} subtitle="School Record" />
       </div>
 
