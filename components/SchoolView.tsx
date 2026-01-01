@@ -10,28 +10,24 @@ interface SchoolViewProps {
   aiInsights: AIInsight[];
   periodData: any[];
   subjects: string[];
+  thresholds: Record<string, number>;
+  setThresholds: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  thresholdType: 'rank' | 'percent';
+  setThresholdType: React.Dispatch<React.SetStateAction<'rank' | 'percent'>>;
 }
 
-interface Threshold {
-  label: string;
-  value: number;
-  color: string;
-  type: 'rank' | 'percent';
-}
-
-const SchoolView: React.FC<SchoolViewProps> = ({ selectedPeriod, aiInsights, periodData, subjects }) => {
+const SchoolView: React.FC<SchoolViewProps> = ({ 
+  selectedPeriod, 
+  aiInsights, 
+  periodData, 
+  subjects,
+  thresholds,
+  setThresholds,
+  thresholdType,
+  setThresholdType
+}) => {
   const [showSettings, setShowSettings] = useState(false);
-  const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
   
-  // Default thresholds (Rank-based or Percentage-based)
-  const [thresholds, setThresholds] = useState<Record<string, number>>({
-    '清北': 5,
-    'C9': 30,
-    '高分数': 100,
-    '名校': 300,
-    '特控': 600,
-  });
-
   const admissionLabels = [
     { key: '清北', color: '#be123c' }, // Rose 700
     { key: 'C9', color: '#1e40af' },    // Blue 800

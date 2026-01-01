@@ -30,6 +30,16 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
+  // 提升上线阈值状态，以便全局共享
+  const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
+  const [thresholds, setThresholds] = useState<Record<string, number>>({
+    '清北': 5,
+    'C9': 30,
+    '高分数': 100,
+    '名校': 300,
+    '特控': 600,
+  });
+
   useEffect(() => {
     const fetchAI = async () => {
       setAiLoading(true);
@@ -66,11 +76,18 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return snapshot as any[];
   }, [data.students, data.classes, selectedPeriod]);
 
-  // 计算“特控上线人数”：即排名在 600 名以内的学生总数（与 SchoolView 默认阈值同步）
+  // 动态计算“特控上线人数”：根据用户配置的最高阈值（特控）进行统计
   const aboveLineCount = useMemo(() => {
-    const threshold = 600;
-    return periodData.filter(s => s.periodSchoolRank <= threshold).length;
-  }, [periodData]);
+    if (periodData.length === 0) return 0;
+    
+    // 获取最大的阈值（通常是“特控”）
+    const maxVal = thresholds['特控'] || 0;
+    const limit = thresholdType === 'rank' 
+      ? maxVal 
+      : Math.round((maxVal / 100) * periodData.length);
+      
+    return periodData.filter(s => s.periodSchoolRank <= limit).length;
+  }, [periodData, thresholds, thresholdType]);
 
   // Calculations for sub-views passed as props
   const examParameters = useMemo(() => {
@@ -168,7 +185,18 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodData={periodData} subjects={data.subjects} />}
+        {activeTab === 'school' && (
+          <SchoolView 
+            selectedPeriod={selectedPeriod} 
+            aiInsights={aiInsights} 
+            periodData={periodData} 
+            subjects={data.subjects} 
+            thresholds={thresholds}
+            setThresholds={setThresholds}
+            thresholdType={thresholdType}
+            setThresholdType={setThresholdType}
+          />
+        )}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
