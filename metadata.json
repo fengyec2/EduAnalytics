@@ -1,0 +1,5 @@
+{
+  "name": "EduAnalytics - AI Student Performance Insights",
+  "description": "A comprehensive student performance analysis platform that transforms Excel data into multi-dimensional insights using Gemini AI and interactive visualizations.",
+  "requestFramePermissions": []
+}
