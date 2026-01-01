@@ -8,15 +8,14 @@ import {
 import { 
   Users, BookOpen, GraduationCap, TrendingUp, ChevronRight, 
   Award, AlertTriangle, Lightbulb, Search, Activity, History,
-  Table as TableIcon, Layers, Crown, Target, Filter, Calendar
+  Table as TableIcon, Layers, Crown, Target, Filter, Calendar, Calculator, Sigma
 } from 'lucide-react';
 import { AnalysisState, AIInsight, StudentRecord } from '../types';
 import { getAIInsights } from '../services/geminiService';
 
 const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
-  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'student'>('school');
+  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'student' | 'parameters'>('school');
   
-  // Available Periods derived from first student's history
   const allPeriods = useMemo(() => {
     if (!data.students[0]) return [];
     return data.students[0].history.map(h => h.period);
@@ -29,7 +28,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
   const [aiLoading, setAiLoading] = useState(true);
   
-  // Student Selector States
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
@@ -48,13 +46,8 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     [data.students, selectedStudentId]
   );
 
-  // --- DYNAMIC DATA COMPUTATION FOR SELECTED PERIOD ---
-  
-  // Calculate period-specific metrics for all students
   const periodData = useMemo(() => {
     if (!selectedPeriod) return [];
-    
-    // 1. Extract raw scores for this period
     const snapshot = data.students.map(s => {
       const historyItem = s.history.find(h => h.period === selectedPeriod);
       return {
@@ -65,11 +58,9 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       };
     });
 
-    // 2. Calculate School Ranks for this specific period
     snapshot.sort((a, b) => b.currentTotal - a.currentTotal);
     snapshot.forEach((s, idx) => (s as any).periodSchoolRank = idx + 1);
 
-    // 3. Calculate Class Ranks for this specific period
     data.classes.forEach(cls => {
       const classStudents = snapshot.filter(s => s.class === cls);
       classStudents.sort((a, b) => b.currentTotal - a.currentTotal);
@@ -85,10 +76,84 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     }>;
   }, [data.students, data.classes, selectedPeriod]);
 
-  // School Stats for Selected Period
+  // --- PARAMETER ANALYSIS CALCULATIONS ---
+  const examParameters = useMemo(() => {
+    if (periodData.length === 0) return null;
+
+    const subjects = data.subjects;
+    const n = periodData.length;
+    const stats: any[] = [];
+
+    subjects.forEach(sub => {
+      const scores = periodData.map(s => s.currentScores[sub] || 0).sort((a, b) => a - b);
+      const sum = scores.reduce((a, b) => a + b, 0);
+      const mean = sum / n;
+      const max = scores[n - 1];
+      
+      // Full score estimation (Assume 100, or 120/150 if max exceeds)
+      let fullScore = 100;
+      if (max > 120) fullScore = 150;
+      if (max > 100 && max <= 120) fullScore = 120;
+      if (max > 150) fullScore = Math.ceil(max / 10) * 10;
+
+      // Std Dev
+      const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+      const stdDev = Math.sqrt(variance);
+
+      // Median
+      const median = n % 2 === 0 ? (scores[n/2 - 1] + scores[n/2]) / 2 : scores[Math.floor(n/2)];
+
+      // Mode
+      const counts: Record<number, number> = {};
+      scores.forEach(s => counts[s] = (counts[s] || 0) + 1);
+      let mode = scores[0];
+      let maxCount = 0;
+      Object.entries(counts).forEach(([val, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mode = Number(val);
+        }
+      });
+
+      // Difficulty (L): Mean / FullScore (0-1, higher is easier)
+      const difficulty = mean / fullScore;
+
+      // Discrimination (D): (MeanTop27% - MeanBottom27%) / FullScore
+      const splitIdx = Math.round(n * 0.27);
+      const top27 = scores.slice(n - splitIdx);
+      const bottom27 = scores.slice(0, splitIdx);
+      const meanTop = top27.length > 0 ? top27.reduce((a, b) => a + b, 0) / top27.length : 0;
+      const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
+      const discrimination = (meanTop - meanBottom) / fullScore;
+
+      stats.push({
+        subject: sub,
+        participants: n,
+        max,
+        mean: parseFloat(mean.toFixed(2)),
+        stdDev: parseFloat(stdDev.toFixed(2)),
+        mode,
+        median,
+        difficulty: parseFloat(difficulty.toFixed(2)),
+        discrimination: parseFloat(discrimination.toFixed(2)),
+        variance
+      });
+    });
+
+    // Reliability (Cronbach's Alpha)
+    // alpha = (k / (k - 1)) * (1 - sum(var_i) / var_total)
+    const k = subjects.length;
+    const sumVarItems = stats.reduce((acc, s) => acc + s.variance, 0);
+    const totalScores = periodData.map(s => s.currentTotal);
+    const meanTotal = totalScores.reduce((a, b) => a + b, 0) / n;
+    const varTotal = totalScores.reduce((a, b) => a + Math.pow(b - meanTotal, 2), 0) / n;
+    const reliability = k > 1 ? (k / (k - 1)) * (1 - (sumVarItems / varTotal)) : 1;
+
+    return { subjectStats: stats, reliability: parseFloat(reliability.toFixed(2)) };
+  }, [periodData, data.subjects]);
+
   const periodSchoolStats = useMemo(() => {
     if (periodData.length === 0) return null;
-    
     const dist = [
       { name: 'Excellent (≥90)', value: 0, color: '#10b981' },
       { name: 'Good (80-89)', value: 0, color: '#3b82f6' },
@@ -96,7 +161,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       { name: 'Pass (60-69)', value: 0, color: '#6366f1' },
       { name: 'Fail (<60)', value: 0, color: '#ef4444' },
     ];
-
     periodData.forEach(s => {
       const avg = s.currentAverage;
       if (avg >= 90) dist[0].value++;
@@ -105,16 +169,13 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       else if (avg >= 60) dist[3].value++;
       else dist[4].value++;
     });
-
     const subjectAvgs = data.subjects.map(sub => {
       const avg = periodData.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / periodData.length;
       return { name: sub, avg: parseFloat(avg.toFixed(2)) };
     });
-
     return { distribution: dist.filter(d => d.value > 0), subjectAvgs };
   }, [periodData, data.subjects]);
 
-  // Class Comparison for Selected Period
   const classComparisonData = useMemo(() => {
     return data.subjects.map(sub => {
       const entry: any = { name: sub };
@@ -139,7 +200,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     });
   }, [periodData, selectedClasses]);
 
-  // Kings for Selected Period
   const kingsData = useMemo(() => {
     return data.subjects.map(sub => {
       const classMax = Math.max(...periodData.filter(s => s.class === benchmarkClass).map(s => s.currentScores[sub] || 0), 0);
@@ -151,7 +211,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const duelData = useMemo(() => {
     const classFirst = periodData.filter(s => s.class === benchmarkClass).sort((a,b) => b.currentTotal - a.currentTotal)[0];
     const schoolFirst = periodData.sort((a,b) => b.currentTotal - a.currentTotal)[0];
-    
     return data.subjects.map(sub => ({
       subject: sub,
       classFirst: classFirst?.currentScores[sub] || 0,
@@ -159,7 +218,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     }));
   }, [periodData, data.subjects, benchmarkClass]);
 
-  // Filtered Students for the Selector
   const selectableStudents = useMemo(() => {
     return data.students.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(studentSearchTerm.toLowerCase());
@@ -172,7 +230,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Overview Stats (Always based on latest, but icons and period selection are key) */}
+      {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Total Students" value={data.students.length.toString()} subtitle="Full Cohort" />
         <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title="Classes" value={data.classes.length.toString()} subtitle="Groups" />
@@ -180,16 +238,16 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
         <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Top Score" value={data.schoolStats.max.toString()} subtitle="School Best" />
       </div>
 
-      {/* Global Exam & Navigation Bar */}
+      {/* Navigation */}
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
           <TabButton active={activeTab === 'school'} onClick={() => setActiveTab('school')} icon={<History className="w-4 h-4"/>} label="School View" />
           <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label="Class Comparison" />
           <TabButton active={activeTab === 'kings'} onClick={() => setActiveTab('kings')} icon={<Crown className="w-4 h-4"/>} label="Elite Benchmarks" />
+          <TabButton active={activeTab === 'parameters'} onClick={() => setActiveTab('parameters')} icon={<Calculator className="w-4 h-4"/>} label="Exam Parameters" />
           <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label="Student Detail" />
         </div>
 
-        {/* Global Period Selector - Not shown in student detail because that has its own historical view */}
         {activeTab !== 'student' && (
           <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100 animate-in slide-in-from-right-4">
             <Calendar className="w-4 h-4 text-blue-600" />
@@ -206,6 +264,104 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full space-y-8">
+        {/* TAB: PARAMETERS */}
+        {activeTab === 'parameters' && examParameters && (
+          <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white shadow-xl">
+                <Sigma className="w-10 h-10 mb-4 opacity-50" />
+                <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest mb-1">Global Reliability (α)</h3>
+                <p className="text-5xl font-black mb-4">{examParameters.reliability}</p>
+                <p className="text-xs opacity-80 leading-relaxed">
+                  Calculated using Cronbach's Alpha. A value > 0.7 indicates high internal consistency and test reliability.
+                </p>
+                <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between text-xs">
+                  <span>Method: Internal Consistency</span>
+                  <span className="font-bold px-2 py-1 bg-white/10 rounded-lg">
+                    {examParameters.reliability >= 0.7 ? 'Stable' : 'Unstable'}
+                  </span>
+                </div>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Difficulty & Discrimination Matrix</p>
+                   <div className="h-[200px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis type="number" dataKey="difficulty" name="Difficulty" domain={[0, 1]} stroke="#94a3b8" fontSize={10} label={{ value: 'Easier ->', position: 'insideBottom', offset: -5 }} />
+                          <YAxis type="number" dataKey="discrimination" name="Discrimination" domain={[0, 1]} stroke="#94a3b8" fontSize={10} label={{ value: 'Better ->', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                          <Scatter name="Subjects" data={examParameters.subjectStats} fill="#3b82f6">
+                            {examParameters.subjectStats.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                            ))}
+                          </Scatter>
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                   </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-center text-center">
+                   <Activity className="w-8 h-8 text-indigo-500 mx-auto mb-3" />
+                   <h4 className="text-sm font-bold text-gray-800">Total Participants</h4>
+                   <p className="text-4xl font-black text-indigo-600">{periodData.length}</p>
+                   <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">Valid Exam Records</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                  <Sigma className="w-4 h-4" /> Subject Parameter Matrix ({selectedPeriod})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="bg-white text-gray-400 font-bold border-b border-gray-100">
+                      <th className="px-8 py-5">Subject</th>
+                      <th className="px-6 py-5 text-center">Max</th>
+                      <th className="px-6 py-5 text-center">Mean</th>
+                      <th className="px-6 py-5 text-center">Median</th>
+                      <th className="px-6 py-5 text-center">Mode</th>
+                      <th className="px-6 py-5 text-center">Std Dev (σ)</th>
+                      <th className="px-6 py-5 text-center bg-blue-50/30 text-blue-700">Difficulty (L)</th>
+                      <th className="px-6 py-5 text-center bg-indigo-50/30 text-indigo-700">Discrimination (D)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {examParameters.subjectStats.map((s, i) => (
+                      <tr key={i} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="px-8 py-5 font-bold text-gray-700">{s.subject}</td>
+                        <td className="px-6 py-5 text-center text-gray-600 font-medium">{s.max}</td>
+                        <td className="px-6 py-5 text-center text-gray-900 font-bold">{s.mean}</td>
+                        <td className="px-6 py-5 text-center text-gray-600">{s.median}</td>
+                        <td className="px-6 py-5 text-center text-gray-600">{s.mode}</td>
+                        <td className="px-6 py-5 text-center text-gray-600">{s.stdDev}</td>
+                        <td className="px-6 py-5 text-center bg-blue-50/20">
+                          <span className={`px-2 py-1 rounded-lg font-bold text-xs ${s.difficulty > 0.8 ? 'text-green-600 bg-green-50' : s.difficulty < 0.4 ? 'text-red-600 bg-red-50' : 'text-blue-600 bg-blue-50'}`}>
+                            {s.difficulty}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-center bg-indigo-50/20">
+                          <span className={`px-2 py-1 rounded-lg font-bold text-xs ${s.discrimination > 0.4 ? 'text-green-600 bg-green-50' : s.discrimination < 0.2 ? 'text-red-600 bg-red-50' : 'text-indigo-600 bg-indigo-50'}`}>
+                            {s.discrimination}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-8 py-4 bg-gray-50 text-[10px] text-gray-400 flex gap-6 italic">
+                <span>* Difficulty (L): Mean / FullScore. Value closer to 1 means easier.</span>
+                <span>* Discrimination (D): Top 27% mean vs Bottom 27% mean. Value > 0.4 is excellent.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB: SCHOOL VIEW */}
         {activeTab === 'school' && periodSchoolStats && (
           <div className="space-y-8">
