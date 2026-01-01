@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Search, Filter, GraduationCap, TrendingUp, Table as TableIcon } from 'lucide-react';
 import { StudentRecord } from '../types';
@@ -16,11 +16,28 @@ interface StudentDetailViewProps {
   setSelectedStudentId: (id: string) => void;
   selectedStudent: StudentRecord | undefined;
   subjects: string[];
+  gradeAveragesByPeriod: Record<string, number>;
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
-  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects 
+  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod 
 }) => {
+  // 处理趋势图表数据，注入年级总分平均值作为参考
+  const chartData = useMemo(() => {
+    if (!selectedStudent) return [];
+    return selectedStudent.history.map(h => ({
+      ...h,
+      gradeAvgTotal: gradeAveragesByPeriod[h.period] || 0
+    }));
+  }, [selectedStudent, gradeAveragesByPeriod]);
+
+  // 计算个人历史平均总分
+  const historyMeanTotal = useMemo(() => {
+    if (!selectedStudent || selectedStudent.history.length === 0) return 0;
+    const sum = selectedStudent.history.reduce((acc, h) => acc + h.totalScore, 0);
+    return sum / selectedStudent.history.length;
+  }, [selectedStudent]);
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
@@ -85,8 +102,8 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                 
                 <div className="space-y-4 pt-6 border-t border-white/10">
                    <div className="flex justify-between items-center">
-                     <span className="text-xs opacity-60 uppercase">Average Score</span>
-                     <span className="text-xl font-bold">{selectedStudent.averageScore.toFixed(1)}</span>
+                     <span className="text-xs opacity-60 uppercase">Average Total Score</span>
+                     <span className="text-xl font-bold">{historyMeanTotal.toFixed(1)}</span>
                    </div>
                    <div className="flex justify-between items-center">
                      <span className="text-xs opacity-60 uppercase">Improvement (Total)</span>
@@ -103,16 +120,19 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
 
             <div className="lg:col-span-2 space-y-8">
-              <ChartContainer title="📈 Performance Total Score Curve">
+              <ChartContainer title="📈 Performance vs Grade Average Curve">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={selectedStudent.history}>
+                  <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
                     <YAxis domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [value.toFixed(1), '']}
+                    />
                     <Legend verticalAlign="top" height={36}/>
-                    <Line type="monotone" dataKey="totalScore" name="Total Score" stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="averageScore" name="Avg Score (Ref)" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="monotone" dataKey="totalScore" name="My Total Score" stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="gradeAvgTotal" name="Grade Avg Total (Ref)" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -131,8 +151,8 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                   <tr className="bg-white text-gray-400 font-bold border-b border-gray-100">
                     <th className="px-8 py-5">Period</th>
                     {subjects.map(s => <th key={s} className="px-8 py-5">{s}</th>)}
-                    <th className="px-8 py-5 text-indigo-600">Total</th>
-                    <th className="px-8 py-5 text-blue-600">Average</th>
+                    <th className="px-8 py-5 text-indigo-600">My Total</th>
+                    <th className="px-8 py-5 text-blue-600">Grade Avg Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -143,7 +163,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         <td key={s} className="px-8 py-5 text-gray-600">{h.scores[s] || '-'}</td>
                       ))}
                       <td className="px-8 py-5 font-black text-indigo-600">{h.totalScore}</td>
-                      <td className="px-8 py-5 font-black text-blue-600">{h.averageScore.toFixed(1)}</td>
+                      <td className="px-8 py-5 font-black text-blue-600">
+                        {gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

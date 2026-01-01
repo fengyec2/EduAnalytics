@@ -30,7 +30,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
-  // 提升上线阈值状态，以便全局共享
+  // 提升上线阈值状态
   const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
   const [thresholds, setThresholds] = useState<Record<string, number>>({
     '清北': 5,
@@ -39,6 +39,21 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     '名校': 300,
     '特控': 600,
   });
+
+  // 计算每个周期的年级总分平均分 (用于学生详情页参考)
+  const gradeAveragesByPeriod = useMemo(() => {
+    const averages: Record<string, number> = {};
+    allPeriods.forEach(period => {
+      const periodTotals = data.students
+        .map(s => s.history.find(h => h.period === period)?.totalScore)
+        .filter((t): t is number => t !== undefined);
+      
+      if (periodTotals.length > 0) {
+        averages[period] = periodTotals.reduce((a, b) => a + b, 0) / periodTotals.length;
+      }
+    });
+    return averages;
+  }, [data.students, allPeriods]);
 
   useEffect(() => {
     const fetchAI = async () => {
@@ -76,20 +91,15 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return snapshot as any[];
   }, [data.students, data.classes, selectedPeriod]);
 
-  // 动态计算“特控上线人数”：根据用户配置的最高阈值（特控）进行统计
   const aboveLineCount = useMemo(() => {
     if (periodData.length === 0) return 0;
-    
-    // 获取最大的阈值（通常是“特控”）
     const maxVal = thresholds['特控'] || 0;
     const limit = thresholdType === 'rank' 
       ? maxVal 
       : Math.round((maxVal / 100) * periodData.length);
-      
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
   }, [periodData, thresholds, thresholdType]);
 
-  // Calculations for sub-views passed as props
   const examParameters = useMemo(() => {
     if (periodData.length === 0) return null;
     const subjects = data.subjects;
@@ -200,7 +210,21 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
-        {activeTab === 'student' && <StudentDetailView studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} classFilter={classFilter} setClassFilter={setClassFilter} classes={data.classes} selectableStudents={selectableStudents} selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} selectedStudent={selectedStudent} subjects={data.subjects} />}
+        {activeTab === 'student' && (
+          <StudentDetailView 
+            studentSearchTerm={studentSearchTerm} 
+            setStudentSearchTerm={setStudentSearchTerm} 
+            classFilter={classFilter} 
+            setClassFilter={setClassFilter} 
+            classes={data.classes} 
+            selectableStudents={selectableStudents} 
+            selectedStudentId={selectedStudentId} 
+            setSelectedStudentId={setSelectedStudentId} 
+            selectedStudent={selectedStudent} 
+            subjects={data.subjects} 
+            gradeAveragesByPeriod={gradeAveragesByPeriod}
+          />
+        )}
       </div>
     </div>
   );
