@@ -39,10 +39,16 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
   });
 
-  // 1. 调用 Engine 计算全周期排名映射
+  // 1. 调用 Engine 计算全周期总分排名映射
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
     [data.students]
+  );
+
+  // 1.1 调用 Engine 计算全周期单科排名映射
+  const allSubjectRanks = useMemo(() => 
+    AnalysisEngine.calculateSubjectHistoricalRanks(data.students, data.subjects),
+    [data.students, data.subjects]
   );
 
   // 2. 调用 Engine 计算全周期年级平均分
@@ -155,7 +161,12 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             selectableStudents={data.students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) && (classFilter === 'all' || s.class === classFilter))} 
             selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} 
             selectedStudent={data.students.find(s => s.id === selectedStudentId)} 
-            subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} allHistoricalRanks={allHistoricalRanks}
+            subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} 
+            allHistoricalRanks={allHistoricalRanks}
+            allSubjectRanks={allSubjectRanks}
+            thresholds={thresholds}
+            thresholdType={thresholdType}
+            totalStudents={data.students.length}
           />
         )}
       </div>

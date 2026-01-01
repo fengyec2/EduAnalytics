@@ -2,7 +2,7 @@
 import { StudentRecord, ScoreSnapshot } from '../types';
 
 /**
- * 统一计算全周期名次映射
+ * 统一计算全周期总分名次映射
  * 返回格式: { [PeriodName]: { [StudentName]: Rank } }
  */
 export const calculateHistoricalRanks = (students: StudentRecord[]) => {
@@ -26,6 +26,37 @@ export const calculateHistoricalRanks = (students: StudentRecord[]) => {
   });
 
   return periodRankMap;
+};
+
+/**
+ * 计算全周期、全科目的名次映射
+ * 用于分析单科上线情况
+ * 返回格式: { [PeriodName]: { [SubjectName]: { [StudentName]: Rank } } }
+ */
+export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subjects: string[]) => {
+  const allPeriods = Array.from(new Set(students.flatMap(s => s.history.map(h => h.period))));
+  const result: Record<string, Record<string, Record<string, number>>> = {};
+
+  allPeriods.forEach(period => {
+    result[period] = {};
+    subjects.forEach(sub => {
+      const subRanks: Record<string, number> = {};
+      const sortedStudents = students
+        .map(s => ({
+          name: s.name,
+          score: s.history.find(h => h.period === period)?.scores[sub] ?? -1
+        }))
+        .filter(s => s.score !== -1)
+        .sort((a, b) => b.score - a.score);
+
+      sortedStudents.forEach((s, idx) => {
+        subRanks[s.name] = idx + 1;
+      });
+      result[period][sub] = subRanks;
+    });
+  });
+
+  return result;
 };
 
 /**

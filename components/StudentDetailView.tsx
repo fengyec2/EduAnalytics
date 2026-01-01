@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
 import { StudentRecord } from '../types';
@@ -19,10 +19,14 @@ interface StudentDetailViewProps {
   subjects: string[];
   gradeAveragesByPeriod: Record<string, number>;
   allHistoricalRanks: Record<string, Record<string, number>>;
+  allSubjectRanks: Record<string, Record<string, Record<string, number>>>;
+  thresholds: Record<string, number>;
+  thresholdType: 'rank' | 'percent';
+  totalStudents: number;
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
-  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks 
+  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents
 }) => {
   const chartData = useMemo(() => {
     if (!selectedStudent) return [];
@@ -38,11 +42,39 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     return selectedStudent.history.reduce((acc, h) => acc + h.totalScore, 0) / selectedStudent.history.length;
   }, [selectedStudent]);
 
-  // 调用 Engine 计算进退步状态，避免在 View 中重复造轮子
+  // 调用 Engine 计算进退步状态
   const streakInfo = useMemo(() => 
     selectedStudent ? AnalysisEngine.calculateStreakInfo(selectedStudent, allHistoricalRanks) : null,
     [selectedStudent, allHistoricalRanks]
   );
+
+  // 计算特定科目在特定周期的背景色
+  const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
+    const rank = allSubjectRanks[period]?.[subject]?.[studentName];
+    if (!rank) return 'text-gray-400';
+
+    // 录取线配置
+    const lines = [
+      { key: '清北', style: 'bg-purple-100 text-purple-900 border-purple-200 font-bold border-b-2' },
+      { key: 'C9', style: 'bg-green-100 text-green-900 border-green-200 font-bold border-b-2' },
+      { key: '高分数', style: 'bg-blue-100 text-blue-900 border-blue-200 font-bold border-b-2' },
+      { key: '名校', style: 'text-gray-600' }, // 名校线：不进行任何额外着色，也不添加边框
+      { key: '特控', style: 'bg-yellow-100 text-yellow-900 border-yellow-200 font-bold border-b-2' },
+    ];
+
+    for (const line of lines) {
+      const limit = thresholdType === 'rank' 
+        ? thresholds[line.key] 
+        : Math.round((thresholds[line.key] / 100) * totalStudents);
+      
+      if (rank <= limit) {
+        return line.style;
+      }
+    }
+
+    // 未上线显示为红色
+    return 'bg-red-50 text-red-700 border-red-100 font-bold border-b-2';
+  }, [allSubjectRanks, thresholds, thresholdType, totalStudents]);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -142,12 +174,41 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
           </div>
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between"><h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> Historical Grade Ledger</h3></div>
+            <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> Historical Grade Ledger</h3>
+                <p className="text-[10px] text-gray-400 mt-1 italic">Note:学科背景色基于当次全校单科排名计算</p>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead><tr className="bg-white text-gray-400 font-bold border-b border-gray-100"><th className="px-8 py-5">Period</th>{subjects.map(s => <th key={s} className="px-8 py-5">{s}</th>)}<th className="px-8 py-5 text-indigo-600">My Total</th><th className="px-8 py-5 text-blue-600">Grade Avg Total</th></tr></thead>
-                <tbody className="divide-y divide-gray-50">{selectedStudent.history.map((h, i) => (<tr key={i} className="hover:bg-blue-50/40 transition-colors"><td className="px-8 py-5 font-bold text-gray-700">{h.period}</td>{subjects.map(s => (<td key={s} className="px-8 py-5 text-gray-600">{h.scores[s] || '-'}</td>))}<td className="px-8 py-5 font-black text-indigo-600">{h.totalScore}</td><td className="px-8 py-5 font-black text-blue-600">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td></tr>))}</tbody>
+                <thead><tr className="bg-white text-gray-400 font-bold border-b border-gray-100"><th className="px-8 py-5">Period</th>{subjects.map(s => <th key={s} className="px-8 py-5 text-center">{s}</th>)}<th className="px-8 py-5 text-indigo-600 text-right">My Total</th><th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th></tr></thead>
+                <tbody className="divide-y divide-gray-50">
+                  {selectedStudent.history.map((h, i) => (
+                    <tr key={i} className="hover:bg-blue-50/40 transition-colors">
+                      <td className="px-8 py-5 font-bold text-gray-700">{h.period}</td>
+                      {subjects.map(s => (
+                        <td key={s} className={`px-8 py-5 text-center transition-all ${getSubjectCellStyle(h.period, s, selectedStudent.name)}`}>
+                          {h.scores[s] || '-'}
+                        </td>
+                      ))}
+                      <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
+                      <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
+            </div>
+            
+            {/* 图例 */}
+            <div className="px-8 py-4 bg-gray-50 flex flex-wrap gap-4 border-t border-gray-100">
+              <span className="text-[10px] text-gray-400 font-bold uppercase">Legend:</span>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-purple-100 border border-purple-200" /> <span className="text-[10px] text-gray-600">清北线</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-100 border border-green-200" /> <span className="text-[10px] text-gray-600">C9线</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" /> <span className="text-[10px] text-gray-600">高分线</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded border border-gray-300" /> <span className="text-[10px] text-gray-600">名校线</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200" /> <span className="text-[10px] text-gray-600">特控线</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-50 border border-red-100" /> <span className="text-[10px] text-gray-600">未上线</span></div>
             </div>
           </div>
         </>
