@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, FileSpreadsheet, AlertCircle, Files, CheckCircle2 } from 'lucide-react';
+import { Upload, AlertCircle, Files, CheckCircle2 } from 'lucide-react';
 import { StudentRecord, AnalysisState, ScoreSnapshot } from '../types';
 
 interface FileUploadProps {
@@ -15,8 +15,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
     if (!files || files.length === 0) return;
 
     setLoading(true);
-    
-    // Convert FileList to Array and sort by filename to help with chronological ordering
     const sortedFiles = Array.from(files).sort((a, b) => 
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     );
@@ -52,7 +50,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
               data.forEach((row: any) => {
                 const name = String(row[nameCol]);
                 const className = String(row[classCol]);
-                
                 const scores: Record<string, number> = {};
                 let total = 0;
                 subjectCols.forEach(sub => {
@@ -87,10 +84,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
 
       const subjects = Array.from(allSubjects);
       const students: StudentRecord[] = Array.from(studentMap.entries()).map(([name, info], index) => {
-        // Ensure history is sorted if it wasn't already (though we sorted files)
         const history = info.history;
         const latest = history[history.length - 1];
-
         return {
           id: `s-${index}`,
           name,
@@ -104,55 +99,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
 
       if (students.length === 0) throw new Error("No student data found");
 
-      // Sort and Rank based on LATEST exam
-      students.sort((a, b) => b.totalScore - a.totalScore);
-      students.forEach((s, idx) => s.rankInSchool = idx + 1);
-
-      const classes = [...new Set(students.map(s => s.class))];
-      classes.forEach(cls => {
-        const classStudents = students.filter(s => s.class === cls);
-        classStudents.sort((a, b) => b.totalScore - a.totalScore);
-        classStudents.forEach((s, idx) => s.rankInClass = idx + 1);
-      });
-
-      // Stats
-      const dist = [
-        { name: 'Excellent (≥90)', value: 0, color: '#10b981' },
-        { name: 'Good (80-89)', value: 0, color: '#3b82f6' },
-        { name: 'Fair (70-79)', value: 0, color: '#f59e0b' },
-        { name: 'Pass (60-69)', value: 0, color: '#6366f1' },
-        { name: 'Fail (<60)', value: 0, color: '#ef4444' },
-      ];
-
-      students.forEach(s => {
-        const avg = s.averageScore;
-        if (avg >= 90) dist[0].value++;
-        else if (avg >= 80) dist[1].value++;
-        else if (avg >= 70) dist[2].value++;
-        else if (avg >= 60) dist[3].value++;
-        else dist[4].value++;
-      });
-
-      const subjectStats: Record<string, any> = {};
-      subjects.forEach(sub => {
-        const vals = students.map(s => s.scores[sub] || 0);
-        subjectStats[sub] = {
-          average: vals.reduce((a, b) => a + b, 0) / vals.length,
-          max: Math.max(...vals),
-          min: Math.min(...vals)
-        };
-      });
-
+      // 仅负责生成基础结构，复杂统计留给 Dashboard 实时计算
       onDataLoaded({
         students,
         subjects,
-        classes,
+        classes: [...new Set(students.map(s => s.class))],
         schoolStats: {
           average: students.reduce((acc, s) => acc + s.totalScore, 0) / students.length,
           max: Math.max(...students.map(s => s.totalScore)),
           min: Math.min(...students.map(s => s.totalScore)),
-          subjectStats,
-          distribution: dist.filter(d => d.value > 0)
+          subjectStats: {},
+          distribution: []
         }
       });
     } catch (err) {
@@ -206,25 +163,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
           onChange={(e) => processFiles(e.target.files)} 
         />
       </label>
-
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400 w-full max-w-md">
-        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-          <span>Auto-sort by filename</span>
-        </div>
-        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-          <span>Intelligent Student Merging</span>
-        </div>
-        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-          <span>Full Trend Analysis</span>
-        </div>
-        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-          <span>Multi-subject Support</span>
-        </div>
-      </div>
     </div>
   );
 };

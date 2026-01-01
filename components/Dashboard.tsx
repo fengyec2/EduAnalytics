@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar } from 'lucide-react';
-import { AnalysisState, AIInsight, StudentRecord } from '../types';
+import { AnalysisState, AIInsight } from '../types';
 import { getAIInsights } from '../services/geminiService';
 import { StatCard, TabButton } from './SharedComponents';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 // View Imports
 import SchoolView from './SchoolView';
@@ -12,13 +13,16 @@ import EliteBenchmarksView from './EliteBenchmarksView';
 import ExamParametersView from './ExamParametersView';
 import StudentDetailView from './StudentDetailView';
 
+// Fix: Define colors for charts and comparisons to resolve "Cannot find name 'colors'" errors
+const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+
 const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'student' | 'parameters'>('school');
   
-  const allPeriods = useMemo(() => {
-    if (!data.students[0]) return [];
-    return data.students[0].history.map(h => h.period);
-  }, [data.students]);
+  const allPeriods = useMemo(() => 
+    data.students[0]?.history.map(h => h.period) || [], 
+    [data.students]
+  );
 
   const [selectedPeriod, setSelectedPeriod] = useState<string>(allPeriods[allPeriods.length - 1] || '');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([data.classes[0]]);
@@ -30,53 +34,22 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
-  // 提升上线阈值状态
   const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
   const [thresholds, setThresholds] = useState<Record<string, number>>({
-    '清北': 5,
-    'C9': 30,
-    '高分数': 100,
-    '名校': 300,
-    '特控': 600,
+    '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
   });
 
-  // 计算所有历史时期的全校排名映射 (Period -> StudentName -> Rank)
-  const allHistoricalRanks = useMemo(() => {
-    const periodRankMap: Record<string, Record<string, number>> = {};
-    
-    allPeriods.forEach(period => {
-      const periodStudents = data.students
-        .map(s => ({
-          name: s.name,
-          total: s.history.find(h => h.period === period)?.totalScore ?? -1
-        }))
-        .filter(s => s.total !== -1)
-        .sort((a, b) => b.total - a.total);
-      
-      const ranks: Record<string, number> = {};
-      periodStudents.forEach((s, idx) => {
-        ranks[s.name] = idx + 1;
-      });
-      periodRankMap[period] = ranks;
-    });
-    
-    return periodRankMap;
-  }, [data.students, allPeriods]);
+  // 1. 调用 Engine 计算全周期排名映射
+  const allHistoricalRanks = useMemo(() => 
+    AnalysisEngine.calculateHistoricalRanks(data.students), 
+    [data.students]
+  );
 
-  // 计算每个周期的年级总分平均分
-  const gradeAveragesByPeriod = useMemo(() => {
-    const averages: Record<string, number> = {};
-    allPeriods.forEach(period => {
-      const periodTotals = data.students
-        .map(s => s.history.find(h => h.period === period)?.totalScore)
-        .filter((t): t is number => t !== undefined);
-      
-      if (periodTotals.length > 0) {
-        averages[period] = periodTotals.reduce((a, b) => a + b, 0) / periodTotals.length;
-      }
-    });
-    return averages;
-  }, [data.students, allPeriods]);
+  // 2. 调用 Engine 计算全周期年级平均分
+  const gradeAveragesByPeriod = useMemo(() => 
+    AnalysisEngine.calculateGradeAverages(data.students), 
+    [data.students]
+  );
 
   useEffect(() => {
     const fetchAI = async () => {
@@ -88,72 +61,33 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     fetchAI();
   }, [data]);
 
-  const selectedStudent = useMemo(() => 
-    data.students.find(s => s.id === selectedStudentId), 
-    [data.students, selectedStudentId]
-  );
-
+  // 3. 构造当前所选周期的快照数据
   const periodData = useMemo(() => {
     if (!selectedPeriod) return [];
-    const snapshot = data.students.map(s => {
+    const ranks = allHistoricalRanks[selectedPeriod] || {};
+    return data.students.map(s => {
       const historyItem = s.history.find(h => h.period === selectedPeriod);
       return {
         ...s,
         currentTotal: historyItem?.totalScore || 0,
         currentAverage: historyItem?.averageScore || 0,
         currentScores: historyItem?.scores || {},
+        periodSchoolRank: ranks[s.name] || 9999
       };
-    });
-    snapshot.sort((a, b) => b.currentTotal - a.currentTotal);
-    snapshot.forEach((s, idx) => (s as any).periodSchoolRank = idx + 1);
-    return snapshot as any[];
-  }, [data.students, selectedPeriod]);
+    }).sort((a, b) => a.periodSchoolRank - b.periodSchoolRank);
+  }, [data.students, selectedPeriod, allHistoricalRanks]);
 
+  // 4. 调用 Engine 计算考试统计参数
+  const examParameters = useMemo(() => 
+    AnalysisEngine.calculateExamParameters(periodData, data.subjects),
+    [periodData, data.subjects]
+  );
+
+  // 以下为各视图所需的 derived data
   const aboveLineCount = useMemo(() => {
-    if (periodData.length === 0) return 0;
-    const maxVal = thresholds['特控'] || 0;
-    const limit = thresholdType === 'rank' 
-      ? maxVal 
-      : Math.round((maxVal / 100) * periodData.length);
+    const limit = thresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
   }, [periodData, thresholds, thresholdType]);
-
-  const examParameters = useMemo(() => {
-    if (periodData.length === 0) return null;
-    const subjects = data.subjects;
-    const n = periodData.length;
-    const stats: any[] = [];
-    subjects.forEach(sub => {
-      const scores = periodData.map(s => s.currentScores[sub] || 0).sort((a, b) => a - b);
-      const sum = scores.reduce((a, b) => a + b, 0);
-      const mean = sum / n;
-      const max = scores[n - 1];
-      let fullScore = max > 120 ? (max > 150 ? Math.ceil(max / 10) * 10 : 150) : (max > 100 ? 120 : 100);
-      const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
-      const stdDev = Math.sqrt(variance);
-      const median = n % 2 === 0 ? (scores[n/2 - 1] + scores[n/2]) / 2 : scores[Math.floor(n/2)];
-      const counts: Record<number, number> = {};
-      scores.forEach(s => counts[s] = (counts[s] || 0) + 1);
-      let mode = scores[0];
-      let maxCount = 0;
-      Object.entries(counts).forEach(([val, count]) => { if (count > maxCount) { maxCount = count; mode = Number(val); } });
-      const difficulty = mean / fullScore;
-      const splitIdx = Math.round(n * 0.27);
-      const top27 = scores.slice(n - splitIdx);
-      const bottom27 = scores.slice(0, splitIdx);
-      const meanTop = top27.length > 0 ? top27.reduce((a, b) => a + b, 0) / top27.length : 0;
-      const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
-      const discrimination = (meanTop - meanBottom) / fullScore;
-      stats.push({ subject: sub, participants: n, max, mean: parseFloat(mean.toFixed(2)), stdDev: parseFloat(stdDev.toFixed(2)), mode, median, difficulty: parseFloat(difficulty.toFixed(2)), discrimination: parseFloat(discrimination.toFixed(2)), variance });
-    });
-    const k = subjects.length;
-    const sumVarItems = stats.reduce((acc, s) => acc + s.variance, 0);
-    const totalScores = periodData.map(s => s.currentTotal);
-    const meanTotal = totalScores.reduce((a, b) => a + b, 0) / n;
-    const varTotal = totalScores.reduce((a, b) => a + Math.pow(b - meanTotal, 2), 0) / n;
-    const reliability = k > 1 ? (k / (k - 1)) * (1 - (sumVarItems / varTotal)) : 1;
-    return { subjectStats: stats, reliability: parseFloat(reliability.toFixed(2)) };
-  }, [periodData, data.subjects]);
 
   const classComparisonData = useMemo(() => data.subjects.map(sub => {
     const entry: any = { name: sub };
@@ -178,12 +112,9 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
 
   const duelData = useMemo(() => {
     const classFirst = periodData.filter(s => s.class === benchmarkClass).sort((a,b) => b.currentTotal - a.currentTotal)[0];
-    const schoolFirst = periodData.sort((a,b) => b.currentTotal - a.currentTotal)[0];
+    const schoolFirst = periodData[0];
     return data.subjects.map(sub => ({ subject: sub, classFirst: classFirst?.currentScores[sub] || 0, schoolFirst: schoolFirst?.currentScores[sub] || 0 }));
   }, [periodData, data.subjects, benchmarkClass]);
-
-  const selectableStudents = useMemo(() => data.students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) && (classFilter === 'all' || s.class === classFilter)), [data.students, studentSearchTerm, classFilter]);
-  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
@@ -213,35 +144,18 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && (
-          <SchoolView 
-            selectedPeriod={selectedPeriod} 
-            aiInsights={aiInsights} 
-            periodData={periodData} 
-            subjects={data.subjects} 
-            thresholds={thresholds}
-            setThresholds={setThresholds}
-            thresholdType={thresholdType}
-            setThresholdType={setThresholdType}
-          />
-        )}
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setThresholds} thresholdType={thresholdType} setThresholdType={setThresholdType} />}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
         {activeTab === 'student' && (
           <StudentDetailView 
-            studentSearchTerm={studentSearchTerm} 
-            setStudentSearchTerm={setStudentSearchTerm} 
-            classFilter={classFilter} 
-            setClassFilter={setClassFilter} 
-            classes={data.classes} 
-            selectableStudents={selectableStudents} 
-            selectedStudentId={selectedStudentId} 
-            setSelectedStudentId={setSelectedStudentId} 
-            selectedStudent={selectedStudent} 
-            subjects={data.subjects} 
-            gradeAveragesByPeriod={gradeAveragesByPeriod}
-            allHistoricalRanks={allHistoricalRanks}
+            studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} 
+            classFilter={classFilter} setClassFilter={setClassFilter} classes={data.classes} 
+            selectableStudents={data.students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) && (classFilter === 'all' || s.class === classFilter))} 
+            selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} 
+            selectedStudent={data.students.find(s => s.id === selectedStudentId)} 
+            subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} allHistoricalRanks={allHistoricalRanks}
           />
         )}
       </div>
