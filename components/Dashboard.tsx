@@ -153,7 +153,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
 
       <div className="w-full">
         {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setThresholds} thresholdType={thresholdType} setThresholdType={setThresholdType} />}
-        {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
+        {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} periodData={periodData} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
         {activeTab === 'subjectAnalysis' && (
