@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar } from 'lucide-react';
+import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3 } from 'lucide-react';
 import { AnalysisState, AIInsight } from '../types';
 import { getAIInsights } from '../services/geminiService';
 import { StatCard, TabButton } from './SharedComponents';
@@ -12,12 +12,13 @@ import ClassComparisonView from './ClassComparisonView';
 import EliteBenchmarksView from './EliteBenchmarksView';
 import ExamParametersView from './ExamParametersView';
 import StudentDetailView from './StudentDetailView';
+import SubjectAnalysisView from './SubjectAnalysisView';
 
 // Fix: Define colors for charts and comparisons to resolve "Cannot find name 'colors'" errors
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
-  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'student' | 'parameters'>('school');
+  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'subjectAnalysis' | 'parameters' | 'student'>('school');
   
   const allPeriods = useMemo(() => 
     data.students[0]?.history.map(h => h.period) || [], 
@@ -137,6 +138,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
           <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label="Class Comparison" />
           <TabButton active={activeTab === 'kings'} onClick={() => setActiveTab('kings')} icon={<Crown className="w-4 h-4"/>} label="Elite Benchmarks" />
           <TabButton active={activeTab === 'parameters'} onClick={() => setActiveTab('parameters')} icon={<Calculator className="w-4 h-4"/>} label="Exam Parameters" />
+          <TabButton active={activeTab === 'subjectAnalysis'} onClick={() => setActiveTab('subjectAnalysis')} icon={<BarChart3 className="w-4 h-4"/>} label="Subject Analysis" />
           <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label="Student Detail" />
         </div>
         {activeTab !== 'student' && (
@@ -154,6 +156,18 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
+        {activeTab === 'subjectAnalysis' && (
+          <SubjectAnalysisView 
+            selectedPeriod={selectedPeriod}
+            periodData={periodData}
+            subjects={data.subjects}
+            classes={data.classes}
+            allSubjectRanks={allSubjectRanks}
+            thresholds={thresholds}
+            thresholdType={thresholdType}
+            totalStudents={data.students.length}
+          />
+        )}
         {activeTab === 'student' && (
           <StudentDetailView 
             studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} 
