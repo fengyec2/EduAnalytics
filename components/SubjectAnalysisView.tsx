@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { Filter, Search } from 'lucide-react';
+import { Filter, Search, UserX, Info } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
 
 interface SubjectAnalysisViewProps {
@@ -21,14 +21,12 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
   const [selectedSubject, setSelectedSubject] = useState(subjects[0] || '');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([classes[0]]);
 
-  const admissionBuckets = [
-    { key: '清北', label: '清北线', color: '#a855f7' }, // Purple
-    { key: 'C9', label: 'C9线', color: '#22c55e' },    // Green
-    { key: '高分数', label: '高分线', color: '#3b82f6' }, // Blue
-    { key: '名校', label: '名校线', color: '#94a3b8' },   // Gray (Neutral as requested)
-    { key: '特控', label: '特控线', color: '#eab308' },   // Yellow
-    { key: '未上线', label: '未上线', color: '#ef4444' },  // Red
-  ];
+  // 计算当前的特控线限制（作为未上线的界限）
+  const teKongLimit = useMemo(() => {
+    return thresholdType === 'rank' 
+      ? thresholds['特控'] 
+      : Math.round((thresholds['特控'] / 100) * totalStudents);
+  }, [thresholds, thresholdType, totalStudents]);
 
   const distributionData = useMemo(() => {
     if (!selectedPeriod || !selectedSubject) return [];
@@ -78,6 +76,26 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
     return results;
   }, [selectedPeriod, selectedSubject, selectedClasses, allSubjectRanks, thresholds, thresholdType, totalStudents, periodData]);
 
+  // 提取未上线学生名单
+  const belowLineStudents = useMemo(() => {
+    if (!selectedPeriod || !selectedSubject) return [];
+    
+    const subjectRanks = allSubjectRanks[selectedPeriod]?.[selectedSubject] || {};
+    
+    return periodData
+      .filter(s => selectedClasses.includes(s.class))
+      .filter(s => {
+        const rank = subjectRanks[s.name];
+        return rank && rank > teKongLimit;
+      })
+      .map(s => ({
+        name: s.name,
+        rank: subjectRanks[s.name],
+        class: s.class
+      }))
+      .sort((a, b) => a.rank - b.rank);
+  }, [selectedPeriod, selectedSubject, selectedClasses, allSubjectRanks, teKongLimit, periodData]);
+
   const toggleClass = (cls: string) => {
     setSelectedClasses(prev => 
       prev.includes(cls) ? prev.filter(p => p !== cls) : [...prev, cls]
@@ -86,6 +104,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+      {/* 筛选控制器 */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
         <div className="space-y-3 flex-1">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -122,6 +141,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         </div>
       </div>
 
+      {/* 柱状分布图 */}
       <ChartContainer title={`${selectedSubject} Distribution in Selected Classes (${selectedPeriod})`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -142,6 +162,43 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
           </BarChart>
         </ResponsiveContainer>
       </ChartContainer>
+
+      {/* 未上线名单展示 */}
+      <div className="bg-white rounded-3xl border border-rose-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="px-8 py-6 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2">
+              <UserX className="w-4 h-4" /> Focus List: Students Below Any Line
+            </h3>
+            <p className="text-[10px] text-rose-400 mt-1">
+              当前 {selectedClasses.join(', ')} 班在 {selectedSubject} 科目共有 {belowLineStudents.length} 人未达上线标准
+            </p>
+          </div>
+        </div>
+        <div className="p-8">
+          {belowLineStudents.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {belowLineStudents.map((s, idx) => (
+                <div 
+                  key={idx}
+                  className="bg-white border border-rose-100 rounded-xl p-3 flex flex-col gap-1 hover:shadow-md transition-all hover:scale-[1.02]"
+                >
+                  <span className="text-sm font-bold text-gray-800">{s.name}</span>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-gray-400">{s.class}</span>
+                    <span className="text-rose-600 font-black">#{s.rank}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400 italic">
+              <Info className="w-8 h-8 mb-2 opacity-20 text-green-500" />
+              <p className="text-sm">Great! No students in the selected group are below the thresholds for this subject.</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
         <h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest mb-3">Analysis Insight</h4>
