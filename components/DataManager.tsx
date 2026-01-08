@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, Plus, Trash2, GripVertical, AlertTriangle, CheckCircle2, FileSpreadsheet, Layers } from 'lucide-react';
 import { AnalysisState, ExamEntity } from '../types';
 import ImportWizard from './ImportWizard';
@@ -11,18 +11,66 @@ interface DataManagerProps {
 
 const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated }) => {
   const [showWizard, setShowWizard] = useState(false);
-  const [exams, setExams] = useState<ExamEntity[]>(() => {
-    if (!initialData) return [];
-    // Extract exams from initialData.students[0].history
-    const sampleHistory = initialData.students[0]?.history || [];
-    return sampleHistory.map((h, idx) => ({
-      id: `exam-${idx}`,
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  
+  // Local state for exams, initialized from data
+  const [exams, setExams] = useState<ExamEntity[]>([]);
+
+  // Sync local exams with initialData if it changes externally
+  useEffect(() => {
+    if (!initialData || initialData.students.length === 0) {
+      setExams([]);
+      return;
+    }
+    // We use the first student's history as the source of truth for the exam list/order
+    const sampleHistory = initialData.students[0].history || [];
+    setExams(sampleHistory.map((h, idx) => ({
+      id: `exam-${h.period}-${idx}`,
       name: h.period,
       weight: idx,
-      isComplete: true,
+      isComplete: h.isComplete ?? true,
       fileCount: 1
+    })));
+  }, [initialData]);
+
+  const updateGlobalOrder = (newExams: ExamEntity[]) => {
+    if (!initialData) return;
+
+    const periodOrder = newExams.map(e => e.name);
+    
+    // Create new students array where each student's history is sorted by the new period order
+    const updatedStudents = initialData.students.map(student => ({
+      ...student,
+      history: [...student.history].sort((a, b) => 
+        periodOrder.indexOf(a.period) - periodOrder.indexOf(b.period)
+      )
     }));
-  });
+
+    onDataUpdated({
+      ...initialData,
+      students: updatedStudents
+    });
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newExams = [...exams];
+    const [movedItem] = newExams.splice(draggedIndex, 1);
+    newExams.splice(index, 0, movedItem);
+    
+    setExams(newExams);
+    setDraggedIndex(null);
+    updateGlobalOrder(newExams);
+  };
 
   const handleDeleteExam = (examName: string) => {
     if (!confirm(`Are you sure you want to delete "${examName}"?`)) return;
@@ -36,7 +84,6 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
 
     if (newStudents.length === 0) {
       onDataUpdated(null);
-      setExams([]);
     } else {
       const newClasses = [...new Set(newStudents.map(s => s.class))];
       const newSubjects = [...new Set(newStudents.flatMap(s => Object.keys(s.history[0]?.scores || {})))];
@@ -47,23 +94,12 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
         classes: newClasses,
         subjects: newSubjects
       });
-      setExams(prev => prev.filter(e => e.name !== examName));
     }
   };
 
   const handleImportComplete = (newState: AnalysisState) => {
     onDataUpdated(newState);
     setShowWizard(false);
-    
-    // Update local exam list
-    const sampleHistory = newState.students[0]?.history || [];
-    setExams(sampleHistory.map((h, idx) => ({
-      id: `exam-${idx}`,
-      name: h.period,
-      weight: idx,
-      isComplete: true,
-      fileCount: 1
-    })));
   };
 
   return (
@@ -109,8 +145,7 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
               <div className="bg-blue-50 p-4 rounded-2xl flex items-center gap-3 border border-blue-100">
                 <AlertTriangle className="w-5 h-5 text-blue-600" />
                 <p className="text-xs text-blue-700 font-medium leading-relaxed">
-                  <strong>Notice:</strong> The order of exams here determines the timeline in your charts. 
-                  Drag and drop sorting feature is coming soon to help you refine your academic story.
+                  <strong>Chronology Management:</strong> Drag the handles below to reorder exams. This determines the timeline of student progress charts.
                 </p>
               </div>
 
@@ -123,9 +158,18 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
                 </div>
                 <div className="divide-y divide-gray-50">
                   {exams.map((exam, index) => (
-                    <div key={exam.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group">
+                    <div 
+                      key={exam.id} 
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={() => handleDrop(index)}
+                      className={`p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group cursor-default ${draggedIndex === index ? 'opacity-40 bg-gray-100' : ''}`}
+                    >
                       <div className="flex items-center gap-4">
-                        <GripVertical className="w-5 h-5 text-gray-300 cursor-grab active:cursor-grabbing" />
+                        <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded transition-colors">
+                          <GripVertical className="w-5 h-5 text-gray-400" />
+                        </div>
                         <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-xs font-black text-gray-400">
                           {index + 1}
                         </div>
