@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3 } from 'lucide-react';
-import { AnalysisState, AIInsight } from '../types';
-import { getAIInsights } from '../services/geminiService';
+import { AnalysisState } from '../types';
 import { StatCard, TabButton } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
@@ -14,7 +13,6 @@ import ExamParametersView from './ExamParametersView';
 import StudentDetailView from './StudentDetailView';
 import SubjectAnalysisView from './SubjectAnalysisView';
 
-// Fix: Define colors for charts and comparisons to resolve "Cannot find name 'colors'" errors
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
@@ -29,8 +27,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([data.classes[0]]);
   const [benchmarkClass, setBenchmarkClass] = useState(data.classes[0]);
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id);
-  const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
-  const [aiLoading, setAiLoading] = useState(true);
   
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
@@ -57,16 +53,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     AnalysisEngine.calculateGradeAverages(data.students), 
     [data.students]
   );
-
-  useEffect(() => {
-    const fetchAI = async () => {
-      setAiLoading(true);
-      const insights = await getAIInsights(data);
-      setAiInsights(insights);
-      setAiLoading(false);
-    };
-    fetchAI();
-  }, [data]);
 
   // 3. 构造当前所选周期的快照数据
   const periodData = useMemo(() => {
@@ -152,7 +138,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} aiInsights={aiInsights} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setThresholds} thresholdType={thresholdType} setThresholdType={setThresholdType} />}
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setThresholds} thresholdType={thresholdType} setThresholdType={setThresholdType} />}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} periodData={periodData} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}

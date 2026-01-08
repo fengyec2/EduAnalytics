@@ -54,7 +54,7 @@ const App: React.FC = () => {
               <div className="max-w-3xl mx-auto text-center py-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h1 className="text-4xl font-extrabold text-gray-900 mb-6 leading-tight">
                   Unlock Deep Academic Insights <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Driven by AI</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Driven by Data</span>
                 </h1>
                 <p className="text-lg text-gray-500 mb-12 max-w-xl mx-auto">
                   Transform your raw student records into actionable pedagogical intelligence. Start by managing your exam data.
@@ -94,7 +94,7 @@ const App: React.FC = () => {
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-3 px-4 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-xs text-gray-400">
-          <p>© 2024 EduAnalytics Platform. Powered by Gemini 3 Flash.</p>
+          <p>© 2024 EduAnalytics Platform. Data-driven Educational Excellence.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:text-blue-500">Privacy</a>
             <a href="#" className="hover:text-blue-500">Terms</a>

@@ -31,9 +31,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
           reader.onload = (evt) => {
             try {
               const bstr = evt.target?.result;
-              const wb = window.XLSX.read(bstr, { type: 'binary' });
+              // Fixed: Added explicit casting to any to access global XLSX and resolve compilation errors.
+              const wb = (window as any).XLSX.read(bstr, { type: 'binary' });
               const ws = wb.Sheets[wb.SheetNames[0]];
-              const data = window.XLSX.utils.sheet_to_json(ws);
+              // Fixed: Added explicit casting to any to access global XLSX and resolve compilation errors.
+              const data = (window as any).XLSX.utils.sheet_to_json(ws);
 
               if (data.length === 0) {
                 resolve();

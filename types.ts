@@ -40,12 +40,6 @@ export interface AnalysisState {
   };
 }
 
-export interface AIInsight {
-  title: string;
-  content: string;
-  type: 'success' | 'warning' | 'info';
-}
-
 export type ImportMode = 'complete' | 'incomplete';
 export type DataStructure = 'multi-file-single' | 'single-file-multi';
 export type RankSource = 'recalculate' | 'imported';
@@ -59,6 +53,7 @@ export interface ColumnMapping {
   status?: string;
 }
 
+// Fixed the global augmentation by using uppercase Window interface.
 declare global {
   interface Window {
     XLSX: any;

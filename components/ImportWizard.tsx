@@ -38,9 +38,11 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      const wb = window.XLSX.read(bstr, { type: 'binary' });
+      // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
+      const wb = (window as any).XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = window.XLSX.utils.sheet_to_json(ws);
+      // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
+      const data = (window as any).XLSX.utils.sheet_to_json(ws);
       if (data.length > 0) {
         const foundHeaders = Object.keys(data[0] as object);
         setHeaders(foundHeaders);
@@ -91,8 +93,10 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
 
         const content = await new Promise<any[]>((resolve) => {
           reader.onload = (e) => {
-            const wb = window.XLSX.read(e.target?.result, { type: 'binary' });
-            resolve(window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
+            // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
+            const wb = (window as any).XLSX.read(e.target?.result, { type: 'binary' });
+            // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
+            resolve((window as any).XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
           };
           reader.readAsBinaryString(file);
         });
