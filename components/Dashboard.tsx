@@ -63,6 +63,19 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   );
 
   const aboveLineCount = useMemo(() => {
+    // 逻辑：如果数据包含导入的状态，统计所有非“未上线”且包含关键上线字样的记录
+    const hasImportedStatus = periodData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
+    
+    if (hasImportedStatus) {
+      // 简单逻辑：只要 status 不是“未上线”或空，且匹配到预定义标签中的任何一个
+      const validLabels = ['清北', 'C9', '高分', '名校', '特控', '上线', '一本', '本科'];
+      return periodData.filter(s => {
+        const status = s.currentStatus || '';
+        return status !== '' && status !== '未上线' && validLabels.some(label => status.includes(label));
+      }).length;
+    }
+
+    // 后备：按系统名次阈值计算
     const limit = thresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
   }, [periodData, thresholds, thresholdType]);
@@ -99,7 +112,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Total Students" value={data.students.length.toString()} subtitle="Cohort Size" />
         <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title="Classes" value={data.classes.length.toString()} subtitle="Active Groups" />
-        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="特控上线人数" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
+        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="上线人数 (特控及以上)" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
         <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Best Score" value={data.schoolStats.max.toString()} subtitle="School Record" />
       </div>
 

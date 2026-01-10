@@ -59,8 +59,6 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
 
 /**
  * 计算进退步系数
- * z = 2 * (x - y) / (x + y)
- * x: 第一次考试排名, y: 第二次考试排名
  */
 export const calculateProgressCoefficient = (x: number, y: number): number => {
   if (x <= 0 || y <= 0) return 0;
@@ -86,13 +84,11 @@ export const getProgressAnalysisData = (
     const x = ranksX[s.name];
     const y = ranksY[s.name];
     
-    // 如果某次考试缺考，则不参与计算
     if (x === undefined || y === undefined) return null;
 
     const coefficient = calculateProgressCoefficient(x, y);
-    const rankChange = x - y; // 正数为进步（名次减小），负数为退步（名次增大）
+    const rankChange = x - y; 
     
-    // 复用之前的连续进退步逻辑
     const streakInfo = calculateStreakInfo(s, allHistoricalRanks);
     let streakCount = 0;
     if (streakInfo && streakInfo.count > 0) {
@@ -143,6 +139,7 @@ export const getPeriodSnapshot = (students: StudentRecord[], selectedPeriod: str
       currentTotal: historyItem?.totalScore || 0,
       currentAverage: historyItem?.averageScore || 0,
       currentScores: historyItem?.scores || {},
+      currentStatus: historyItem?.status,
       periodSchoolRank: ranks[s.name] || 9999
     };
   }).sort((a, b) => a.periodSchoolRank - b.periodSchoolRank);
@@ -158,6 +155,25 @@ export const getAdmissionDistribution = (
   labels: { key: string, color: string }[]
 ) => {
   if (!periodData.length) return [];
+
+  const hasImportedStatus = periodData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
+
+  if (hasImportedStatus) {
+    const statusCounts: Record<string, number> = {};
+    periodData.forEach(s => {
+      const status = (s.currentStatus || '未上线').trim();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return Object.entries(statusCounts).map(([name, count]) => {
+      const match = labels.find(l => l.key === name || name.includes(l.key));
+      return {
+        name,
+        value: count,
+        color: match ? match.color : '#94a3b8'
+      };
+    }).sort((a, b) => b.value - a.value);
+  }
 
   const totalCount = periodData.length;
   const sortedThresholds = [...labels].map(l => ({
@@ -217,7 +233,7 @@ export const getClassSummaries = (periodData: any[], selectedClasses: string[]) 
 };
 
 /**
- * 获取班级荣誉榜（最高平均分、最多前10等）
+ * 获取班级荣誉榜
  */
 export const getClassLeaderboard = (classSummaries: any[]) => {
   if (classSummaries.length === 0) return null;
@@ -286,7 +302,37 @@ export const calculateStreakInfo = (
 };
 
 /**
- * 计算考试参数（信度、区分度、难度等）
+ * 获取上线类别
+ */
+export const getAdmissionCategory = (
+  rank: number,
+  thresholds: Record<string, number>,
+  thresholdType: 'rank' | 'percent',
+  totalStudents: number,
+  snapshotStatus?: string
+) => {
+  if (snapshotStatus && snapshotStatus !== '') return snapshotStatus;
+
+  const lines = [
+    { key: '清北', label: '清北' },
+    { key: 'C9', label: 'C9' },
+    { key: '高分数', label: '高分' },
+    { key: '名校', label: '名校' },
+    { key: '特控', label: '特控' },
+  ];
+
+  for (const line of lines) {
+    const limit = thresholdType === 'rank' 
+      ? thresholds[line.key] 
+      : Math.round((thresholds[line.key] / 100) * totalStudents);
+    
+    if (rank <= limit) return line.label;
+  }
+  return '未上线';
+};
+
+/**
+ * 计算考试参数
  */
 export const calculateExamParameters = (periodData: any[], subjects: string[]) => {
   if (periodData.length === 0) return null;
@@ -303,12 +349,6 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
     const stdDev = Math.sqrt(variance);
     const median = n % 2 === 0 ? (scores[n/2 - 1] + scores[n/2]) / 2 : scores[Math.floor(n/2)];
     
-    const counts: Record<number, number> = {};
-    scores.forEach(s => counts[s] = (counts[s] || 0) + 1);
-    let mode = scores[0];
-    let maxCount = 0;
-    Object.entries(counts).forEach(([val, count]) => { if (count > maxCount) { maxCount = count; mode = Number(val); } });
-
     const difficulty = mean / fullScore;
     const splitIdx = Math.round(n * 0.27);
     const top27 = scores.slice(n - splitIdx);
@@ -323,8 +363,6 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
       max,
       mean: parseFloat(mean.toFixed(2)),
       stdDev: parseFloat(stdDev.toFixed(2)),
-      mode,
-      median,
       difficulty: parseFloat(difficulty.toFixed(2)),
       discrimination: parseFloat(discrimination.toFixed(2)),
       variance
@@ -386,33 +424,6 @@ export const getStudentSubjectTrend = (
 };
 
 /**
- * 获取上线类别
- */
-export const getAdmissionCategory = (
-  rank: number,
-  thresholds: Record<string, number>,
-  thresholdType: 'rank' | 'percent',
-  totalStudents: number
-) => {
-  const lines = [
-    { key: '清北', label: '清北' },
-    { key: 'C9', label: 'C9' },
-    { key: '高分数', label: '高分' },
-    { key: '名校', label: '名校' },
-    { key: '特控', label: '特控' },
-  ];
-
-  for (const line of lines) {
-    const limit = thresholdType === 'rank' 
-      ? thresholds[line.key] 
-      : Math.round((thresholds[line.key] / 100) * totalStudents);
-    
-    if (rank <= limit) return line.label;
-  }
-  return '未上线';
-};
-
-/**
  * 获取单科排名等级
  */
 export const getSubjectRankCategory = (
@@ -440,11 +451,12 @@ export const getSubjectRankCategory = (
 };
 
 /**
- * 计算单科名次分布
+ * 计算单科上线分布
+ * 优化：如果导入了全局上线状态，Bar图将显示这些状态在所选科目/班级中的分布
  */
 export const getSubjectDistribution = (
   selectedPeriod: string,
-  selectedSubject: string,
+  subject: string,
   selectedClasses: string[],
   periodData: any[],
   allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
@@ -452,76 +464,119 @@ export const getSubjectDistribution = (
   thresholdType: 'rank' | 'percent',
   totalStudents: number
 ) => {
-  if (!selectedPeriod || !selectedSubject) return [];
+  const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
+  const hasImportedStatus = filteredData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
 
-  const subjectRanks = allSubjectRanks[selectedPeriod]?.[selectedSubject] || {};
-  const filteredStudents = periodData.filter(s => selectedClasses.includes(s.class));
+  if (hasImportedStatus) {
+    const statusCounts: Record<string, number> = {};
+    filteredData.forEach(s => {
+      const status = (s.currentStatus || '未上线').trim();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
 
-  const getLimit = (key: string) => {
-    if (key === '未上线') return Infinity;
-    return thresholdType === 'rank' 
-      ? thresholds[key] 
-      : Math.round((thresholds[key] / 100) * totalStudents);
-  };
+    const labels = [
+      { key: '清北', color: '#be123c' },
+      { key: 'C9', color: '#1e40af' },
+      { key: '高分数', color: '#0369a1' },
+      { key: '名校', color: '#0d9488' },
+      { key: '特控', color: '#10b981' },
+    ];
 
-  const limits = {
-    '清北': getLimit('清北'),
-    'C9': getLimit('C9'),
-    '高分数': getLimit('高分数'),
-    '名校': getLimit('名校'),
-    '特控': getLimit('特控'),
-    '未上线': Infinity
-  };
+    return Object.entries(statusCounts).map(([name, count]) => {
+      const match = labels.find(l => l.key === name || name.includes(l.key));
+      return {
+        name,
+        count,
+        color: match ? match.color : '#94a3b8'
+      };
+    }).sort((a, b) => b.count - a.count);
+  }
 
-  const results = [
-    { name: '清北线', count: 0, color: '#a855f7' },
-    { name: 'C9线', count: 0, color: '#22c55e' },
-    { name: '高分线', count: 0, color: '#3b82f6' },
-    { name: '名校线', count: 0, color: '#94a3b8' },
-    { name: '特控线', count: 0, color: '#eab308' },
-    { name: '未上线', count: 0, color: '#ef4444' },
+  const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
+  const labels = [
+    { key: '清北', color: '#be123c' },
+    { key: 'C9', color: '#1e40af' },
+    { key: '高分数', color: '#0369a1' },
+    { key: '名校', color: '#0d9488' },
+    { key: '特控', color: '#10b981' },
   ];
 
-  filteredStudents.forEach(s => {
-    const rank = subjectRanks[s.name];
-    if (!rank) return;
+  const results = labels.map((l, idx) => {
+    const limit = thresholdType === 'rank' 
+      ? thresholds[l.key] 
+      : Math.round((thresholds[l.key] / 100) * totalStudents);
+    const prevLimit = idx === 0 ? 0 : (thresholdType === 'rank' 
+      ? thresholds[labels[idx-1].key] 
+      : Math.round((thresholds[labels[idx-1].key] / 100) * totalStudents));
 
-    if (rank <= limits['清北']) results[0].count++;
-    else if (rank <= limits['C9']) results[1].count++;
-    else if (rank <= limits['高分数']) results[2].count++;
-    else if (rank <= limits['名校']) results[3].count++;
-    else if (rank <= limits['特控']) results[4].count++;
-    else results[5].count++;
+    const count = filteredData.filter(s => {
+      const rank = subjectRanks[s.name];
+      return rank !== undefined && rank > prevLimit && rank <= limit;
+    }).length;
+
+    return { name: l.key, count, color: l.color };
   });
 
-  return results;
+  const maxLimit = thresholdType === 'rank' 
+    ? thresholds[labels[labels.length - 1].key] 
+    : Math.round((thresholds[labels[labels.length - 1].key] / 100) * totalStudents);
+  
+  results.push({
+    name: '未上线',
+    count: filteredData.filter(s => {
+      const rank = subjectRanks[s.name];
+      return rank !== undefined && rank > maxLimit;
+    }).length,
+    color: '#94a3b8'
+  });
+
+  return results.filter(r => r.count > 0);
 };
 
 /**
- * 获取未上线学生列表
+ * 获取特定科目未达上线标准的学生列表
+ * 优化：优先考虑导入的全局上线状态
  */
 export const getBelowLineStudents = (
   selectedPeriod: string,
-  selectedSubject: string,
+  subject: string,
   selectedClasses: string[],
   periodData: any[],
   allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
   teKongLimit: number
 ) => {
-  if (!selectedPeriod || !selectedSubject) return [];
-  
-  const subjectRanks = allSubjectRanks[selectedPeriod]?.[selectedSubject] || {};
-  
-  return periodData
-    .filter(s => selectedClasses.includes(s.class))
+  const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
+  const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
+  const hasImportedStatus = filteredData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
+
+  if (hasImportedStatus) {
+    const validPassedKeywords = ['清北', 'C9', '高分', '名校', '特控', '上线', '一本', '本科'];
+    return filteredData
+      .filter(s => {
+        const status = s.currentStatus || '';
+        const isNotPassed = status === '未上线' || status === '' || !validPassedKeywords.some(kw => status.includes(kw));
+        return isNotPassed;
+      })
+      .map(s => ({
+        name: s.name,
+        class: s.class,
+        rank: subjectRanks[s.name] || 'N/A'
+      }))
+      .sort((a, b) => {
+        if (typeof a.rank === 'number' && typeof b.rank === 'number') return a.rank - b.rank;
+        return 0;
+      });
+  }
+
+  return filteredData
     .filter(s => {
       const rank = subjectRanks[s.name];
-      return rank && rank > teKongLimit;
+      return rank !== undefined && rank > teKongLimit;
     })
     .map(s => ({
       name: s.name,
-      rank: subjectRanks[s.name],
-      class: s.class
+      class: s.class,
+      rank: subjectRanks[s.name]
     }))
     .sort((a, b) => a.rank - b.rank);
 };

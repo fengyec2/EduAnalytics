@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2 } from 'lucide-react';
+import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2, UserCheck, ShieldCheck } from 'lucide-react';
 import { AnalysisState, ImportMode, DataStructure, RankSource, ColumnMapping, StudentRecord, ScoreSnapshot } from '../types';
 
 interface ImportWizardProps {
@@ -53,7 +53,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           subjectRanks: {}
         };
 
-        // Improved Chinese and English header detection
         foundHeaders.forEach(h => {
           const lower = h.toLowerCase();
           if (!autoMapping.name && (lower === '姓名' || lower === 'name' || lower.includes('学生姓名') || lower === '学生')) {
@@ -74,9 +73,13 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
             autoMapping.subjects[h] = h;
           }
 
-          // Auto-pick rank column if source is imported
           if (!autoMapping.totalRank && (lower === '级名' || lower === '年级排名' || lower === '全校名次' || lower === '总分名次' || lower === 'total rank')) {
             autoMapping.totalRank = h;
+          }
+
+          // 增强对“上线情况”列的自动检测
+          if (!autoMapping.status && (lower === '上线' || lower === '上线情况' || lower === '录取状态' || lower === '录取' || lower === 'admission' || lower === 'status' || lower === '等级')) {
+            autoMapping.status = h;
           }
         });
 
@@ -92,7 +95,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
       const allSubjects = Object.keys(mapping.subjects);
       const studentMap = new Map<string, { class: string; history: ScoreSnapshot[] }>();
       
-      // Load existing state to allow incremental updates
       if (currentData) {
         currentData.students.forEach(s => {
           studentMap.set(s.name, { class: s.class, history: [...s.history] });
@@ -132,6 +134,8 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           totalScore: parseFloat(total.toFixed(2)),
           averageScore: parseFloat((total / (subs.length || 1)).toFixed(2)),
           schoolRank: rankSource === 'imported' && mapping.totalRank ? parseInt(String(row[mapping.totalRank] || '0')) : undefined,
+          // 只有在 rankSource 为 imported 时才尝试导入 status
+          status: rankSource === 'imported' && mapping.status ? String(row[mapping.status] || '').trim() : undefined,
           isComplete: mode === 'complete'
         };
       };
@@ -156,23 +160,18 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           });
         }
       } else {
-        // Single File Summary Table - Multiple Rows per student
         const content = await getFileContent(files[0]);
         const periods = periodNamesInput.split(',').map(s => s.trim()).filter(Boolean);
-        
-        // Group rows by student name
         const studentRows = new Map<string, { class: string, rows: any[] }>();
         content.forEach(row => {
           const name = String(row[mapping.name] || '').trim();
           if (!name || name === 'undefined' || name === mapping.name || name.toLowerCase() === 'name') return;
-          
           if (!studentRows.has(name)) {
             studentRows.set(name, { class: String(row[mapping.class] || '').trim(), rows: [] });
           }
           studentRows.get(name)!.rows.push(row);
         });
 
-        // Use period names from input or default numbering
         const maxExams = Array.from(studentRows.values()).reduce((max, s) => Math.max(max, s.rows.length), 0);
         const finalPeriodNames = Array.from({ length: maxExams }, (_, i) => periods[i] || `Exam ${i + 1}`);
 
@@ -181,25 +180,17 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
             studentMap.set(name, { class: data.class, history: [] });
           }
           const info = studentMap.get(name)!;
-
           data.rows.forEach((row, idx) => {
             const periodName = finalPeriodNames[idx];
             const snapshot = createSnapshot(row, periodName, allSubjects);
-            
-            // Deduplicate period records
             const existingIdx = info.history.findIndex(h => h.period === periodName);
-            if (existingIdx >= 0) {
-              info.history[existingIdx] = snapshot;
-            } else {
-              info.history.push(snapshot);
-            }
+            if (existingIdx >= 0) info.history[existingIdx] = snapshot;
+            else info.history.push(snapshot);
           });
         });
       }
 
-      // Final transformation to StudentRecord array
       const students: StudentRecord[] = Array.from(studentMap.entries()).map(([name, info], index) => {
-        // Sort history by the order they were imported or by period names
         const latest = info.history[info.history.length - 1];
         return {
           id: `s-${index}`,
@@ -291,14 +282,14 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                         <span className="font-bold text-gray-800 text-sm">Whole School (Cohort)</span>
                         {mode === 'complete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
                       </div>
-                      <p className="text-[10px] text-gray-500">File contains all student records for full ranking computation.</p>
+                      <p className="text-[10px] text-gray-500">Full ranking computation will be based on all available records.</p>
                     </button>
                     <button onClick={() => setMode('incomplete')} className={`p-4 rounded-xl border text-left transition-all ${mode === 'incomplete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-gray-800 text-sm">Partial Sample / Group</span>
                         {mode === 'incomplete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
                       </div>
-                      <p className="text-[10px] text-gray-500">File only contains specific groups. Ranks might be skewed.</p>
+                      <p className="text-[10px] text-gray-500">Only selected groups provided. Ranks might be skewed.</p>
                     </button>
                   </div>
                 </div>
@@ -334,17 +325,23 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                   <div className="grid grid-cols-1 gap-2">
                     <button onClick={() => setRankSource('recalculate')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'recalculate' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-gray-800 text-sm">System Calculation</span>
+                        <div className="flex items-center gap-2">
+                          <Settings2 className="w-4 h-4 text-indigo-600" />
+                          <span className="font-bold text-gray-800 text-sm">System Calculation</span>
+                        </div>
                         {rankSource === 'recalculate' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
                       </div>
-                      <p className="text-[10px] text-gray-500">Derive all rankings automatically based on total scores.</p>
+                      <p className="text-[10px] text-gray-500">The system will derive rankings and admission status automatically from scores.</p>
                     </button>
                     <button onClick={() => setRankSource('imported')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'imported' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-gray-800 text-sm">Imported Metadata</span>
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                          <span className="font-bold text-gray-800 text-sm">Imported Metadata</span>
+                        </div>
                         {rankSource === 'imported' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
                       </div>
-                      <p className="text-[10px] text-gray-500">Use pre-existing ranking columns from your Excel file.</p>
+                      <p className="text-[10px] text-gray-500">Prioritize using pre-existing ranking and admission status columns from your Excel file.</p>
                     </button>
                   </div>
                 </div>
@@ -352,7 +349,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                   <div className="space-y-2 p-5 bg-gray-50 rounded-2xl border border-gray-100 animate-in fade-in slide-in-from-top-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Define Exam Sequence (Comma separated)</label>
                     <input type="text" value={periodNamesInput} onChange={(e) => setPeriodNamesInput(e.target.value)} placeholder="e.g. Sep Monthly, Mid-term, Dec Monthly..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p className="text-[8px] text-gray-400 leading-tight mt-1">Order should match the sequence of appearances for each student in the file.</p>
                   </div>
                 )}
               </div>
@@ -384,12 +380,23 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
               </div>
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Metrices</h4>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Total Rank</span>
-                  <select disabled={rankSource === 'recalculate'} value={mapping.totalRank} onChange={(e) => setMapping({...mapping, totalRank: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
-                    <option value="">(Not Specified)</option>
-                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Total Rank</span>
+                    <select disabled={rankSource === 'recalculate'} value={mapping.totalRank} onChange={(e) => setMapping({...mapping, totalRank: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                      <option value="">(Not Specified)</option>
+                      {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-blue-500" /> Admission Status
+                    </span>
+                    <select disabled={rankSource === 'recalculate'} value={mapping.status} onChange={(e) => setMapping({...mapping, status: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                      <option value="">(Not Specified)</option>
+                      {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>

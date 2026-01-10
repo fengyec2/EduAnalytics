@@ -65,8 +65,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
   const getStatusLabel = useCallback((period: string, studentName: string) => {
     const rank = allHistoricalRanks[period]?.[studentName];
     if (!rank) return '-';
-    return AnalysisEngine.getAdmissionCategory(rank, thresholds, thresholdType, totalStudents);
-  }, [allHistoricalRanks, thresholds, thresholdType, totalStudents]);
+    const snapshot = selectedStudent?.history.find(h => h.period === period);
+    return AnalysisEngine.getAdmissionCategory(rank, thresholds, thresholdType, totalStudents, snapshot?.status);
+  }, [allHistoricalRanks, thresholds, thresholdType, totalStudents, selectedStudent]);
 
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
     const rank = allSubjectRanks[period]?.[subject]?.[studentName];

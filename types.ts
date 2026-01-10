@@ -6,6 +6,7 @@ export interface ScoreSnapshot {
   scores: Record<string, number>;
   ranks?: Record<string, number>; // Imported ranks
   schoolRank?: number; // Imported school total rank
+  status?: string; // Imported admission status (e.g., "特控", "一本", "本科")
   isComplete?: boolean; // Data completeness flag
 }
 
