@@ -73,7 +73,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
         subject: sub,
         score: studentScore,
         baseline: parseFloat(baselineAvg.toFixed(1)),
-        fullMark: 150 // 假设满分用于比例参考，Recharts Radar会自动缩放
+        fullMark: 150 // 假设满分用于比例参考
       };
     });
   }, [selectedStudent, selectedPeriod, subjects, radarBaseline, periodData]);
@@ -230,7 +230,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
           </div>
 
-          {/* New Dual Chart Area */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ChartContainer title={`📊 Subject Competency Radar (${selectedPeriod})`}>
               <div className="absolute top-6 right-8 flex gap-2">
@@ -292,16 +291,30 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead><tr className="bg-white text-gray-400 font-bold border-b border-gray-100"><th className="px-8 py-5">Period</th>{subjects.map(s => <th key={s} className="px-8 py-5 text-center">{s}</th>)}<th className="px-8 py-5 text-indigo-600 text-right">My Total</th><th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th><th className="px-8 py-5 text-center text-blue-600">Status</th></tr></thead>
+                <thead>
+                  <tr className="bg-white text-gray-400 font-bold border-b border-gray-100">
+                    <th className="px-8 py-5">Period</th>
+                    {subjects.flatMap(s => [
+                      <th key={s} className="px-8 py-5 text-center">{s}</th>,
+                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}名</th>
+                    ])}
+                    <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
+                    <th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th>
+                    <th className="px-8 py-5 text-center text-blue-600">上线</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-gray-50">
                   {selectedStudent.history.map((h, i) => (
                     <tr key={i} className="hover:bg-blue-50/40 transition-colors">
                       <td className="px-8 py-5 font-bold text-gray-700">{h.period}</td>
-                      {subjects.map(s => (
+                      {subjects.flatMap(s => [
                         <td key={s} className={`px-8 py-5 text-center transition-all ${getSubjectCellStyle(h.period, s, selectedStudent.name)}`}>
                           {h.scores[s] || '-'}
+                        </td>,
+                        <td key={`${s}-rank`} className="px-4 py-5 text-center text-gray-500 font-medium">
+                          {allSubjectRanks[h.period]?.[s]?.[selectedStudent.name] || '-'}
                         </td>
-                      ))}
+                      ])}
                       <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
                       <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
                       <td className="px-8 py-5 text-center font-bold text-gray-600">
@@ -325,7 +338,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
           </div>
         </>
       ) : (
-        <div className="bg-white py-20 rounded-3xl border border-gray-100 shadow-sm text-center"><h3 className="text-xl font-bold text-gray-800">Please select a student above</h3></div>
+        <div className="bg-white py-20 rounded-3xl border border-gray-100 shadow-sm text-center">
+          <h3 className="text-xl font-bold text-gray-800">Please select a student above</h3>
+        </div>
       )}
     </div>
   );
