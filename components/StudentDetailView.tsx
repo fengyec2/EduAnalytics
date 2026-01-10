@@ -1,7 +1,7 @@
 
-import React, { useMemo, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, BarChart4, History as HistoryIcon, Target } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -23,11 +23,16 @@ interface StudentDetailViewProps {
   thresholds: Record<string, number>;
   thresholdType: 'rank' | 'percent';
   totalStudents: number;
+  selectedPeriod: string;
+  periodData: any[];
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
-  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents
+  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents, selectedPeriod, periodData
 }) => {
+  const [radarBaseline, setRadarBaseline] = useState<'class' | 'grade'>('class');
+  const [selectedSubjectForTrend, setSelectedSubjectForTrend] = useState<string>(subjects[0] || '');
+
   const chartData = useMemo(() => {
     if (!selectedStudent) return [];
     return selectedStudent.history.map(h => ({
@@ -42,23 +47,55 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     return selectedStudent.history.reduce((acc, h) => acc + h.totalScore, 0) / selectedStudent.history.length;
   }, [selectedStudent]);
 
-  // 调用 Engine 计算进退步状态
+  // 计算进退步状态
   const streakInfo = useMemo(() => 
     selectedStudent ? AnalysisEngine.calculateStreakInfo(selectedStudent, allHistoricalRanks) : null,
     [selectedStudent, allHistoricalRanks]
   );
 
-  // 计算特定科目在特定周期的背景色
+  // 雷达图数据计算
+  const radarData = useMemo(() => {
+    if (!selectedStudent || !selectedPeriod) return [];
+    const currentScores = selectedStudent.history.find(h => h.period === selectedPeriod)?.scores || {};
+    
+    // 计算对比基准（班级或年级平均分）
+    const baselineSource = radarBaseline === 'class' 
+      ? periodData.filter(s => s.class === selectedStudent.class)
+      : periodData;
+
+    return subjects.map(sub => {
+      const studentScore = currentScores[sub] || 0;
+      const baselineAvg = baselineSource.length > 0
+        ? baselineSource.reduce((acc, s) => acc + (s.currentScores?.[sub] || 0), 0) / baselineSource.length
+        : 0;
+
+      return {
+        subject: sub,
+        score: studentScore,
+        baseline: parseFloat(baselineAvg.toFixed(1)),
+        fullMark: 150 // 假设满分用于比例参考，Recharts Radar会自动缩放
+      };
+    });
+  }, [selectedStudent, selectedPeriod, subjects, radarBaseline, periodData]);
+
+  // 单科历史排名趋势数据
+  const subjectTrendData = useMemo(() => {
+    if (!selectedStudent || !selectedSubjectForTrend) return [];
+    return selectedStudent.history.map(h => ({
+      period: h.period,
+      rank: allSubjectRanks[h.period]?.[selectedSubjectForTrend]?.[selectedStudent.name] || null
+    })).filter(d => d.rank !== null);
+  }, [selectedStudent, selectedSubjectForTrend, allSubjectRanks]);
+
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
     const rank = allSubjectRanks[period]?.[subject]?.[studentName];
     if (!rank) return 'text-gray-400';
 
-    // 录取线配置
     const lines = [
       { key: '清北', style: 'bg-purple-100 text-purple-900 border-purple-200 font-bold border-b-2' },
       { key: 'C9', style: 'bg-green-100 text-green-900 border-green-200 font-bold border-b-2' },
       { key: '高分数', style: 'bg-blue-100 text-blue-900 border-blue-200 font-bold border-b-2' },
-      { key: '名校', style: 'text-gray-600' }, // 名校线：不进行任何额外着色，也不添加边框
+      { key: '名校', style: 'text-gray-600' }, 
       { key: '特控', style: 'bg-yellow-100 text-yellow-900 border-yellow-200 font-bold border-b-2' },
     ];
 
@@ -71,8 +108,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
         return line.style;
       }
     }
-
-    // 未上线显示为红色
     return 'bg-red-50 text-red-700 border-red-100 font-bold border-b-2';
   }, [allSubjectRanks, thresholds, thresholdType, totalStudents]);
 
@@ -173,6 +208,59 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
           </div>
 
+          {/* New Dual Chart Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <ChartContainer title={`📊 Subject Competency Radar (${selectedPeriod})`}>
+              <div className="absolute top-6 right-8 flex gap-2">
+                <button 
+                  onClick={() => setRadarBaseline('class')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${radarBaseline === 'class' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+                >
+                  班级平均
+                </button>
+                <button 
+                  onClick={() => setRadarBaseline('grade')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${radarBaseline === 'grade' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+                >
+                  年级平均
+                </button>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
+                  <Radar name="My Score" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={2} />
+                  <Radar name={radarBaseline === 'class' ? 'Class Avg' : 'Grade Avg'} dataKey="baseline" stroke="#94a3b8" fill="#cbd5e1" fillOpacity={0.3} strokeWidth={1} strokeDasharray="4 4" />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                  <Legend verticalAlign="bottom" height={36} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+
+            <ChartContainer title={`📈 ${selectedSubjectForTrend} Historical Rank Trend`}>
+              <div className="absolute top-6 right-8">
+                <select 
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1 text-[10px] font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedSubjectForTrend}
+                  onChange={(e) => setSelectedSubjectForTrend(e.target.value)}
+                >
+                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={subjectTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
+                  <YAxis reversed domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, 'Subject Rank']} />
+                  <Legend verticalAlign="bottom" height={36} />
+                  <Line type="stepAfter" dataKey="rank" name={`${selectedSubjectForTrend} Rank`} stroke="#10b981" strokeWidth={3} dot={{r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 7 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
               <div>
@@ -200,7 +288,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               </table>
             </div>
             
-            {/* 图例 */}
             <div className="px-8 py-4 bg-gray-50 flex flex-wrap gap-4 border-t border-gray-100">
               <span className="text-[10px] text-gray-400 font-bold uppercase">Legend:</span>
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-purple-100 border border-purple-200" /> <span className="text-[10px] text-gray-600">清北线</span></div>

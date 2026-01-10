@@ -127,14 +127,12 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
           <TabButton active={activeTab === 'subjectAnalysis'} onClick={() => setActiveTab('subjectAnalysis')} icon={<BarChart3 className="w-4 h-4"/>} label="Subject Analysis" />
           <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label="Student Detail" />
         </div>
-        {activeTab !== 'student' && (
-          <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100 animate-in slide-in-from-right-4">
-            <Calendar className="w-4 h-4 text-blue-600" />
-            <select className="bg-transparent border-none text-sm font-black text-blue-900 focus:ring-0 cursor-pointer" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
-              {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100 animate-in slide-in-from-right-4">
+          <Calendar className="w-4 h-4 text-blue-600" />
+          <select className="bg-transparent border-none text-sm font-black text-blue-900 focus:ring-0 cursor-pointer" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
+            {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="w-full">
@@ -167,6 +165,8 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             thresholds={thresholds}
             thresholdType={thresholdType}
             totalStudents={data.students.length}
+            selectedPeriod={selectedPeriod}
+            periodData={periodData}
           />
         )}
       </div>
