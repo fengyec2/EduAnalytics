@@ -66,7 +66,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           if (h === autoMapping.name || h === autoMapping.class) return;
           const lower = h.toLowerCase();
           const isRankCol = lower.includes('名') || lower.includes('次') || lower.includes('rank') || lower === '排名';
-          const isIdCol = lower.includes('号') || lower.includes('学') || lower.includes('id') || lower === '学籍';
+          const isIdCol = lower.includes('号') || lower.includes('id') || lower === '学籍';
           const isStatusCol = lower.includes('上线') || lower.includes('状态') || lower === '等级' || lower === '录取';
           
           if (!isRankCol && !isIdCol && !isStatusCol) {
