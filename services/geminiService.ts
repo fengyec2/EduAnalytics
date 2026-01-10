@@ -28,9 +28,11 @@ export const getAIInsights = async (analysis: AnalysisState) => {
   `;
 
   try {
+    // Using gemini-3-pro-preview for complex reasoning task as per guidelines.
+    // Simplifying contents to a direct string prompt as per guidelines.
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: prompt }] }],
+      model: "gemini-3-pro-preview",
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -58,8 +60,8 @@ export const getAIInsights = async (analysis: AnalysisState) => {
     });
 
     // Directly access the .text property (not a method) and trim whitespace.
-    const jsonStr = response.text?.trim() || "[]";
-    return JSON.parse(jsonStr);
+    const jsonStr = response.text.trim();
+    return JSON.parse(jsonStr || "[]");
   } catch (error) {
     console.error("AI Insights Error:", error);
     return [
