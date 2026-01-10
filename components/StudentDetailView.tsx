@@ -87,6 +87,28 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     })).filter(d => d.rank !== null);
   }, [selectedStudent, selectedSubjectForTrend, allSubjectRanks]);
 
+  const getStatusLabel = useCallback((period: string, studentName: string) => {
+    const rank = allHistoricalRanks[period]?.[studentName];
+    if (!rank) return '-';
+
+    const lines = [
+      { key: '清北', label: '清北' },
+      { key: 'C9', label: 'C9' },
+      { key: '高分数', label: '高分' },
+      { key: '名校', label: '名校' },
+      { key: '特控', label: '特控' },
+    ];
+
+    for (const line of lines) {
+      const limit = thresholdType === 'rank' 
+        ? thresholds[line.key] 
+        : Math.round((thresholds[line.key] / 100) * totalStudents);
+      
+      if (rank <= limit) return line.label;
+    }
+    return '未上线';
+  }, [allHistoricalRanks, thresholds, thresholdType, totalStudents]);
+
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
     const rank = allSubjectRanks[period]?.[subject]?.[studentName];
     if (!rank) return 'text-gray-400';
@@ -270,7 +292,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead><tr className="bg-white text-gray-400 font-bold border-b border-gray-100"><th className="px-8 py-5">Period</th>{subjects.map(s => <th key={s} className="px-8 py-5 text-center">{s}</th>)}<th className="px-8 py-5 text-indigo-600 text-right">My Total</th><th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th></tr></thead>
+                <thead><tr className="bg-white text-gray-400 font-bold border-b border-gray-100"><th className="px-8 py-5">Period</th>{subjects.map(s => <th key={s} className="px-8 py-5 text-center">{s}</th>)}<th className="px-8 py-5 text-indigo-600 text-right">My Total</th><th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th><th className="px-8 py-5 text-center text-blue-600">Status</th></tr></thead>
                 <tbody className="divide-y divide-gray-50">
                   {selectedStudent.history.map((h, i) => (
                     <tr key={i} className="hover:bg-blue-50/40 transition-colors">
@@ -282,6 +304,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                       ))}
                       <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
                       <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
+                      <td className="px-8 py-5 text-center font-bold text-gray-600">
+                        {getStatusLabel(h.period, selectedStudent.name)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
