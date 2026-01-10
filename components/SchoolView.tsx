@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings2, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
@@ -13,6 +13,7 @@ interface SchoolViewProps {
   setThresholds: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   thresholdType: 'rank' | 'percent';
   setThresholdType: React.Dispatch<React.SetStateAction<'rank' | 'percent'>>;
+  hasImportedStatus?: boolean;
 }
 
 const SchoolView: React.FC<SchoolViewProps> = ({ 
@@ -22,7 +23,8 @@ const SchoolView: React.FC<SchoolViewProps> = ({
   thresholds,
   setThresholds,
   thresholdType,
-  setThresholdType
+  setThresholdType,
+  hasImportedStatus = false
 }) => {
   const [showSettings, setShowSettings] = useState(false);
   
@@ -60,47 +62,74 @@ const SchoolView: React.FC<SchoolViewProps> = ({
             <Settings2 className="w-4 h-4 text-blue-600" />
             上线分析参数配置 (Admissions Thresholds)
           </div>
-          {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <div className="flex items-center gap-4">
+            {hasImportedStatus && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                <ShieldCheck className="w-3 h-3" /> 使用导入元数据推算
+              </span>
+            )}
+            {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
         </button>
         
         {showSettings && (
           <div className="px-6 pb-6 pt-2 space-y-6 animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl w-fit">
-              <button 
-                onClick={() => setThresholdType('rank')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'rank' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
-              >
-                按绝对名次 (Rank)
-              </button>
-              <button 
-                onClick={() => setThresholdType('percent')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'percent' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
-              >
-                按百分比 (%)
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {admissionLabels.map(line => (
-                <div key={line.key} className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: line.color }} />
-                    {line.key}
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type="number"
-                      value={thresholds[line.key]}
-                      onChange={(e) => handleThresholdChange(line.key, e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">
-                      {thresholdType === 'rank' ? '位' : '%'}
-                    </span>
-                  </div>
+            {!hasImportedStatus ? (
+              <>
+                <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl w-fit">
+                  <button 
+                    onClick={() => setThresholdType('rank')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'rank' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                  >
+                    按绝对名次 (Rank)
+                  </button>
+                  <button 
+                    onClick={() => setThresholdType('percent')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'percent' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                  >
+                    按百分比 (%)
+                  </button>
                 </div>
-              ))}
-            </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {admissionLabels.map(line => (
+                    <div key={line.key} className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: line.color }} />
+                        {line.key}
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number"
+                          value={thresholds[line.key]}
+                          onChange={(e) => handleThresholdChange(line.key, e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">
+                          {thresholdType === 'rank' ? '位' : '%'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 flex flex-col items-center text-center">
+                <ShieldCheck className="w-10 h-10 text-blue-600 mb-3" />
+                <h4 className="text-sm font-bold text-blue-900 mb-2">已开启“导入元数据”优先模式</h4>
+                <p className="text-xs text-blue-800 max-w-lg leading-relaxed">
+                  系统检测到当前数据包含原始 Excel 导入的“上线情况”列。为了保证统计严谨性，系统已自动推算出各级别的名次阈值：
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 w-full">
+                  {admissionLabels.map(label => (
+                    <div key={label.key} className="bg-white p-3 rounded-xl border border-blue-200 shadow-sm">
+                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1">{label.key}</p>
+                      <p className="text-lg font-black text-blue-600">Top {thresholds[label.key]}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="text-[10px] text-gray-400 italic">注：系统将按名次从小到大自动区间切分。例如 C9 设为 30 则统计 6-30 名的学生。</p>
           </div>
         )}

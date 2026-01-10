@@ -3,13 +3,35 @@ import { StudentRecord, ScoreSnapshot } from '../types';
 
 /**
  * 统一计算全周期总分名次映射
- * 返回格式: { [PeriodName]: { [StudentName]: Rank } }
+ * 优先级：如果存在导入的名次 (schoolRank) 且模式允许，则使用导入名次，否则重新计算
  */
 export const calculateHistoricalRanks = (students: StudentRecord[]) => {
   const allPeriods = Array.from(new Set(students.flatMap(s => s.history.map(h => h.period))));
   const periodRankMap: Record<string, Record<string, number>> = {};
 
   allPeriods.forEach(period => {
+    // 检查是否大部分学生都有导入的名次，如果是，则直接提取
+    const hasImportedRanks = students.some(s => {
+      const h = s.history.find(p => p.period === period);
+      return h?.schoolRank !== undefined && h.schoolRank > 0;
+    });
+
+    if (hasImportedRanks) {
+      const ranks: Record<string, number> = {};
+      students.forEach(s => {
+        const h = s.history.find(p => p.period === period);
+        if (h && h.schoolRank) {
+          ranks[s.name] = h.schoolRank;
+        }
+      });
+      // 只有在确实提取到数据时才采用
+      if (Object.keys(ranks).length > 0) {
+        periodRankMap[period] = ranks;
+        return;
+      }
+    }
+
+    // 回退方案：重新计算排名
     const periodStudents = students
       .map(s => ({
         name: s.name,
@@ -38,6 +60,26 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
   allPeriods.forEach(period => {
     result[period] = {};
     subjects.forEach(sub => {
+      // 检查是否有导入的单科排名
+      const hasImportedRanks = students.some(s => {
+        const h = s.history.find(p => p.period === period);
+        return h?.ranks?.[sub] !== undefined && h.ranks[sub] > 0;
+      });
+
+      if (hasImportedRanks) {
+        const subRanks: Record<string, number> = {};
+        students.forEach(s => {
+          const h = s.history.find(p => p.period === period);
+          if (h?.ranks?.[sub]) {
+            subRanks[s.name] = h.ranks[sub];
+          }
+        });
+        if (Object.keys(subRanks).length > 0) {
+          result[period][sub] = subRanks;
+          return;
+        }
+      }
+
       const subRanks: Record<string, number> = {};
       const sortedStudents = students
         .map(s => ({
@@ -55,6 +97,33 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
   });
 
   return result;
+};
+
+/**
+ * 根据导入的 Metadata 自动推算名次阈值
+ * 用于在 "Imported" 模式下，将全局上线人数映射为单科分析的阈值
+ */
+export const deriveThresholdsFromMetadata = (
+  periodData: any[], 
+  labels: { key: string, color: string }[]
+): Record<string, number> => {
+  const derived: Record<string, number> = {};
+  
+  // 按照 labels 的顺序依次统计各等级“及以上”的总人数
+  // 注意：Excel 导入的 status 通常是离散的（如 10个人是清北，20个人是C9）
+  // 我们需要计算累计值作为 rank 阈值
+  let cumulativeCount = 0;
+  labels.forEach(label => {
+    const count = periodData.filter(s => {
+      const status = (s.currentStatus || '').trim();
+      return status === label.key || status.includes(label.key);
+    }).length;
+    
+    cumulativeCount += count;
+    derived[label.key] = cumulativeCount;
+  });
+
+  return derived;
 };
 
 /**
@@ -140,7 +209,7 @@ export const getPeriodSnapshot = (students: StudentRecord[], selectedPeriod: str
       currentAverage: historyItem?.averageScore || 0,
       currentScores: historyItem?.scores || {},
       currentStatus: historyItem?.status,
-      periodSchoolRank: ranks[s.name] || 9999
+      periodSchoolRank: ranks[s.name] || historyItem?.schoolRank || 9999
     };
   }).sort((a, b) => a.periodSchoolRank - b.periodSchoolRank);
 };
@@ -165,14 +234,18 @@ export const getAdmissionDistribution = (
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
 
-    return Object.entries(statusCounts).map(([name, count]) => {
-      const match = labels.find(l => l.key === name || name.includes(l.key));
-      return {
-        name,
-        value: count,
-        color: match ? match.color : '#94a3b8'
-      };
-    }).sort((a, b) => b.value - a.value);
+    // 按照提供的 labels 顺序排列
+    const results = labels.map(l => ({
+      name: l.key,
+      value: statusCounts[l.key] || 0,
+      color: l.color
+    })).filter(r => r.value > 0);
+
+    const otherCount = periodData.length - results.reduce((acc, r) => acc + r.value, 0);
+    if (otherCount > 0) {
+      results.push({ name: '未上线', value: otherCount, color: '#94a3b8' });
+    }
+    return results;
   }
 
   const totalCount = periodData.length;
@@ -311,7 +384,8 @@ export const getAdmissionCategory = (
   totalStudents: number,
   snapshotStatus?: string
 ) => {
-  if (snapshotStatus && snapshotStatus !== '') return snapshotStatus;
+  // 严格优先使用导入的状态
+  if (snapshotStatus && snapshotStatus !== '' && snapshotStatus !== '未上线') return snapshotStatus;
 
   const lines = [
     { key: '清北', label: '清北' },
@@ -452,7 +526,6 @@ export const getSubjectRankCategory = (
 
 /**
  * 计算单科上线分布
- * 优化：如果导入了全局上线状态，Bar图将显示这些状态在所选科目/班级中的分布
  */
 export const getSubjectDistribution = (
   selectedPeriod: string,
@@ -465,34 +538,8 @@ export const getSubjectDistribution = (
   totalStudents: number
 ) => {
   const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
-  const hasImportedStatus = filteredData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
-
-  if (hasImportedStatus) {
-    const statusCounts: Record<string, number> = {};
-    filteredData.forEach(s => {
-      const status = (s.currentStatus || '未上线').trim();
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
-
-    const labels = [
-      { key: '清北', color: '#be123c' },
-      { key: 'C9', color: '#1e40af' },
-      { key: '高分数', color: '#0369a1' },
-      { key: '名校', color: '#0d9488' },
-      { key: '特控', color: '#10b981' },
-    ];
-
-    return Object.entries(statusCounts).map(([name, count]) => {
-      const match = labels.find(l => l.key === name || name.includes(l.key));
-      return {
-        name,
-        count,
-        color: match ? match.color : '#94a3b8'
-      };
-    }).sort((a, b) => b.count - a.count);
-  }
-
   const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
+  
   const labels = [
     { key: '清北', color: '#be123c' },
     { key: 'C9', color: '#1e40af' },
@@ -535,7 +582,6 @@ export const getSubjectDistribution = (
 
 /**
  * 获取特定科目未达上线标准的学生列表
- * 优化：优先考虑导入的全局上线状态
  */
 export const getBelowLineStudents = (
   selectedPeriod: string,
@@ -547,26 +593,6 @@ export const getBelowLineStudents = (
 ) => {
   const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
   const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
-  const hasImportedStatus = filteredData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
-
-  if (hasImportedStatus) {
-    const validPassedKeywords = ['清北', 'C9', '高分', '名校', '特控', '上线', '一本', '本科'];
-    return filteredData
-      .filter(s => {
-        const status = s.currentStatus || '';
-        const isNotPassed = status === '未上线' || status === '' || !validPassedKeywords.some(kw => status.includes(kw));
-        return isNotPassed;
-      })
-      .map(s => ({
-        name: s.name,
-        class: s.class,
-        rank: subjectRanks[s.name] || 'N/A'
-      }))
-      .sort((a, b) => {
-        if (typeof a.rank === 'number' && typeof b.rank === 'number') return a.rank - b.rank;
-        return 0;
-      });
-  }
 
   return filteredData
     .filter(s => {
@@ -578,5 +604,5 @@ export const getBelowLineStudents = (
       class: s.class,
       rank: subjectRanks[s.name]
     }))
-    .sort((a, b) => a.rank - b.rank);
+    .sort((a, b) => (a.rank as number) - (b.rank as number));
 };

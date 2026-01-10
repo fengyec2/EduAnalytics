@@ -33,9 +33,17 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [classFilter, setClassFilter] = useState<string>('all');
 
   const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
-  const [thresholds, setThresholds] = useState<Record<string, number>>({
+  const [manualThresholds, setManualThresholds] = useState<Record<string, number>>({
     '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
   });
+
+  const admissionLabels = [
+    { key: '清北', color: '#be123c' },
+    { key: 'C9', color: '#1e40af' },
+    { key: '高分数', color: '#0369a1' },
+    { key: '名校', color: '#0d9488' },
+    { key: '特控', color: '#10b981' },
+  ];
 
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
@@ -57,17 +65,28 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     [data.students, selectedPeriod, allHistoricalRanks]
   );
 
+  const hasImportedStatus = useMemo(() => 
+    periodData.some(s => s.currentStatus !== undefined && s.currentStatus !== ''),
+    [periodData]
+  );
+
+  // 关键逻辑：如果存在导入的状态元数据，则自动推算有效的排名阈值，用于单科分析。
+  const thresholds = useMemo(() => {
+    if (hasImportedStatus) {
+      return AnalysisEngine.deriveThresholdsFromMetadata(periodData, admissionLabels);
+    }
+    return manualThresholds;
+  }, [hasImportedStatus, periodData, manualThresholds]);
+
+  const effectiveThresholdType = hasImportedStatus ? 'rank' : thresholdType;
+
   const examParameters = useMemo(() => 
     AnalysisEngine.calculateExamParameters(periodData, data.subjects),
     [periodData, data.subjects]
   );
 
   const aboveLineCount = useMemo(() => {
-    // 逻辑：如果数据包含导入的状态，统计所有非“未上线”且包含关键上线字样的记录
-    const hasImportedStatus = periodData.some(s => s.currentStatus !== undefined && s.currentStatus !== '');
-    
     if (hasImportedStatus) {
-      // 简单逻辑：只要 status 不是“未上线”或空，且匹配到预定义标签中的任何一个
       const validLabels = ['清北', 'C9', '高分', '名校', '特控', '上线', '一本', '本科'];
       return periodData.filter(s => {
         const status = s.currentStatus || '';
@@ -75,10 +94,9 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       }).length;
     }
 
-    // 后备：按系统名次阈值计算
-    const limit = thresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
+    const limit = effectiveThresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
-  }, [periodData, thresholds, thresholdType]);
+  }, [periodData, thresholds, effectiveThresholdType, hasImportedStatus]);
 
   const classComparisonData = useMemo(() => data.subjects.map(sub => {
     const entry: any = { name: sub };
@@ -135,7 +153,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setThresholds} thresholdType={thresholdType} setThresholdType={setThresholdType} />}
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} />}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} periodData={periodData} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
@@ -147,7 +165,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             classes={data.classes}
             allSubjectRanks={allSubjectRanks}
             thresholds={thresholds}
-            thresholdType={thresholdType}
+            thresholdType={effectiveThresholdType}
             totalStudents={data.students.length}
           />
         )}
@@ -170,7 +188,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             allHistoricalRanks={allHistoricalRanks}
             allSubjectRanks={allSubjectRanks}
             thresholds={thresholds}
-            thresholdType={thresholdType}
+            thresholdType={effectiveThresholdType}
             totalStudents={data.students.length}
             selectedPeriod={selectedPeriod}
             periodData={periodData}
