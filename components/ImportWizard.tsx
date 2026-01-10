@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { Upload, X, ArrowRight, ArrowLeft, Database, Settings2, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2 } from 'lucide-react';
 import { AnalysisState, ImportMode, DataStructure, RankSource, ColumnMapping, StudentRecord, ScoreSnapshot } from '../types';
 
 interface ImportWizardProps {
@@ -15,8 +15,8 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
   const [mode, setMode] = useState<ImportMode>('complete');
   const [structure, setStructure] = useState<DataStructure>('multi-file-single');
   const [rankSource, setRankSource] = useState<RankSource>('recalculate');
+  const [periodNamesInput, setPeriodNamesInput] = useState<string>('');
   
-  const [excelData, setExcelData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({
     name: '',
@@ -27,126 +27,180 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
 
   const [loading, setLoading] = useState(false);
 
-  // Step 1: Upload Logic
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    // Explicitly cast to File[] to resolve potential 'unknown' inference issues.
+    if (!e.target.files || e.target.files.length === 0) return;
     const newFiles = Array.from(e.target.files) as File[];
     setFiles(prev => [...prev, ...newFiles]);
     
-    // Preview headers from first file
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
       const wb = (window as any).XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
-      const data = (window as any).XLSX.utils.sheet_to_json(ws);
-      if (data.length > 0) {
-        const foundHeaders = Object.keys(data[0] as object);
+      
+      const rows = (window as any).XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length > 0) {
+        const firstRow = rows.find((r: any[]) => r && r.length > 0) as any[];
+        if (!firstRow) return;
+
+        const foundHeaders = firstRow.map(h => String(h || '').trim()).filter(h => h.length > 0);
         setHeaders(foundHeaders);
-        setExcelData(data);
         
-        // Auto-mapping heuristics
-        const autoMapping = { ...mapping };
+        const autoMapping: ColumnMapping = {
+          name: '',
+          class: '',
+          subjects: {},
+          subjectRanks: {}
+        };
+
+        // Improved Chinese and English header detection
         foundHeaders.forEach(h => {
           const lower = h.toLowerCase();
-          if (lower.includes('名') || lower.includes('name')) autoMapping.name = h;
-          if (lower.includes('班') || lower.includes('class')) autoMapping.class = h;
-          // Subjects usually don't have "rank" or "id" in them
-          if (!lower.includes('名') && !lower.includes('次') && !lower.includes('号') && !lower.includes('学') && h !== autoMapping.name && h !== autoMapping.class) {
-             autoMapping.subjects[h] = h;
+          if (!autoMapping.name && (lower === '姓名' || lower === 'name' || lower.includes('学生姓名') || lower === '学生')) {
+            autoMapping.name = h;
+          } else if (!autoMapping.class && (lower === '班级' || lower === '班' || lower === 'class' || lower.includes('班级名称') || lower === '班别')) {
+            autoMapping.class = h;
           }
         });
+
+        foundHeaders.forEach(h => {
+          if (h === autoMapping.name || h === autoMapping.class) return;
+          const lower = h.toLowerCase();
+          const isRankCol = lower.includes('名') || lower.includes('次') || lower.includes('rank') || lower === '排名';
+          const isIdCol = lower.includes('号') || lower.includes('学') || lower.includes('id') || lower === '学籍';
+          const isStatusCol = lower.includes('上线') || lower.includes('状态') || lower === '等级' || lower === '录取';
+          
+          if (!isRankCol && !isIdCol && !isStatusCol) {
+            autoMapping.subjects[h] = h;
+          }
+
+          // Auto-pick rank column if source is imported
+          if (!autoMapping.totalRank && (lower === '级名' || lower === '年级排名' || lower === '全校名次' || lower === '总分名次' || lower === 'total rank')) {
+            autoMapping.totalRank = h;
+          }
+        });
+
         setMapping(autoMapping);
       }
     };
-    // Ensure the first file exists and is a valid Blob before reading.
-    if (newFiles.length > 0) {
-      reader.readAsBinaryString(newFiles[0]);
-    }
+    reader.readAsBinaryString(newFiles[0]);
   };
 
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Step 3: Execution Logic
   const handleFinalImport = async () => {
     setLoading(true);
     try {
       const allSubjects = Object.keys(mapping.subjects);
       const studentMap = new Map<string, { class: string; history: ScoreSnapshot[] }>();
       
-      // Initialize with existing data if any
+      // Load existing state to allow incremental updates
       if (currentData) {
         currentData.students.forEach(s => {
           studentMap.set(s.name, { class: s.class, history: [...s.history] });
         });
       }
 
-      // Process each file
-      for (const file of files) {
+      const getFileContent = (file: File) => new Promise<any[]>((resolve) => {
         const reader = new FileReader();
-        const periodName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+        reader.onload = (e) => {
+          const wb = (window as any).XLSX.read(e.target?.result, { type: 'binary' });
+          resolve((window as any).XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null }));
+        };
+        reader.readAsBinaryString(file);
+      });
 
-        const content = await new Promise<any[]>((resolve) => {
-          reader.onload = (e) => {
-            // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
-            const wb = (window as any).XLSX.read(e.target?.result, { type: 'binary' });
-            // Fixed: Casting window to any to access global XLSX property and resolve compilation error.
-            resolve((window as any).XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
-          };
-          reader.readAsBinaryString(file);
+      const createSnapshot = (row: any, period: string, subs: string[]): ScoreSnapshot => {
+        const scores: Record<string, number> = {};
+        const ranks: Record<string, number> = {};
+        let total = 0;
+
+        subs.forEach(sub => {
+          const val = row[mapping.subjects[sub]];
+          const score = typeof val === 'number' ? val : parseFloat(String(val || '0')) || 0;
+          scores[sub] = score;
+          total += score;
+          
+          if (rankSource === 'imported' && mapping.subjectRanks[sub]) {
+            const rankVal = row[mapping.subjectRanks[sub]];
+            ranks[sub] = typeof rankVal === 'number' ? rankVal : parseInt(String(rankVal || '0')) || 0;
+          }
         });
 
-        content.forEach((row: any) => {
-          const name = String(row[mapping.name]);
-          const className = String(row[mapping.class]);
-          if (!name || name === 'undefined') return;
+        return {
+          period,
+          scores,
+          ranks: rankSource === 'imported' ? ranks : undefined,
+          totalScore: parseFloat(total.toFixed(2)),
+          averageScore: parseFloat((total / (subs.length || 1)).toFixed(2)),
+          schoolRank: rankSource === 'imported' && mapping.totalRank ? parseInt(String(row[mapping.totalRank] || '0')) : undefined,
+          isComplete: mode === 'complete'
+        };
+      };
 
-          const scores: Record<string, number> = {};
-          const ranks: Record<string, number> = {};
-          let total = 0;
-
-          allSubjects.forEach(sub => {
-            const score = parseFloat(row[mapping.subjects[sub]]) || 0;
-            scores[sub] = score;
-            total += score;
-            if (rankSource === 'imported' && mapping.subjectRanks[sub]) {
-              ranks[sub] = parseInt(row[mapping.subjectRanks[sub]]) || 0;
+      if (structure === 'multi-file-single') {
+        for (const file of files) {
+          const periodName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+          const content = await getFileContent(file);
+          
+          content.forEach((row: any) => {
+            const name = String(row[mapping.name] || '').trim();
+            if (!name || name === 'undefined' || name === mapping.name || name.toLowerCase() === 'name') return;
+            
+            const snapshot = createSnapshot(row, periodName, allSubjects);
+            if (!studentMap.has(name)) {
+              studentMap.set(name, { class: String(row[mapping.class] || '').trim(), history: [] });
             }
+            const info = studentMap.get(name)!;
+            const existingIdx = info.history.findIndex(h => h.period === periodName);
+            if (existingIdx >= 0) info.history[existingIdx] = snapshot;
+            else info.history.push(snapshot);
           });
+        }
+      } else {
+        // Single File Summary Table - Multiple Rows per student
+        const content = await getFileContent(files[0]);
+        const periods = periodNamesInput.split(',').map(s => s.trim()).filter(Boolean);
+        
+        // Group rows by student name
+        const studentRows = new Map<string, { class: string, rows: any[] }>();
+        content.forEach(row => {
+          const name = String(row[mapping.name] || '').trim();
+          if (!name || name === 'undefined' || name === mapping.name || name.toLowerCase() === 'name') return;
+          
+          if (!studentRows.has(name)) {
+            studentRows.set(name, { class: String(row[mapping.class] || '').trim(), rows: [] });
+          }
+          studentRows.get(name)!.rows.push(row);
+        });
 
-          const snapshot: ScoreSnapshot = {
-            period: periodName,
-            scores,
-            ranks: rankSource === 'imported' ? ranks : undefined,
-            totalScore: total,
-            averageScore: total / allSubjects.length,
-            schoolRank: rankSource === 'imported' && mapping.totalRank ? parseInt(row[mapping.totalRank]) : undefined,
-            isComplete: mode === 'complete'
-          };
+        // Use period names from input or default numbering
+        const maxExams = Array.from(studentRows.values()).reduce((max, s) => Math.max(max, s.rows.length), 0);
+        const finalPeriodNames = Array.from({ length: maxExams }, (_, i) => periods[i] || `Exam ${i + 1}`);
 
+        studentRows.forEach((data, name) => {
           if (!studentMap.has(name)) {
-            studentMap.set(name, { class: className, history: [] });
+            studentMap.set(name, { class: data.class, history: [] });
           }
           const info = studentMap.get(name)!;
-          // Avoid duplicate periods for same student
-          const existingIdx = info.history.findIndex(h => h.period === periodName);
-          if (existingIdx >= 0) {
-            info.history[existingIdx] = snapshot;
-          } else {
-            info.history.push(snapshot);
-          }
+
+          data.rows.forEach((row, idx) => {
+            const periodName = finalPeriodNames[idx];
+            const snapshot = createSnapshot(row, periodName, allSubjects);
+            
+            // Deduplicate period records
+            const existingIdx = info.history.findIndex(h => h.period === periodName);
+            if (existingIdx >= 0) {
+              info.history[existingIdx] = snapshot;
+            } else {
+              info.history.push(snapshot);
+            }
+          });
         });
       }
 
+      // Final transformation to StudentRecord array
       const students: StudentRecord[] = Array.from(studentMap.entries()).map(([name, info], index) => {
-        // Sort history by name for now, or use file weight
-        const history = info.history.sort((a, b) => a.period.localeCompare(b.period));
-        const latest = history[history.length - 1];
+        // Sort history by the order they were imported or by period names
+        const latest = info.history[info.history.length - 1];
         return {
           id: `s-${index}`,
           name,
@@ -154,17 +208,16 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           scores: latest.scores,
           totalScore: latest.totalScore,
           averageScore: latest.averageScore,
-          history
+          history: info.history
         };
       });
 
-      const finalClasses = [...new Set(students.map(s => s.class))];
-      const finalSubjects = allSubjects;
+      if (students.length === 0) throw new Error("No student records found. Check mapping.");
 
       onComplete({
         students,
-        subjects: finalSubjects,
-        classes: finalClasses,
+        subjects: allSubjects,
+        classes: [...new Set(students.map(s => s.class))],
         schoolStats: {
           average: students.reduce((acc, s) => acc + s.totalScore, 0) / students.length,
           max: Math.max(...students.map(s => s.totalScore)),
@@ -173,13 +226,17 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           distribution: []
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Error processing files. Please ensure mapping is correct.");
+      alert(`Error processing records: ${err.message || 'Check your mapping and file format.'}`);
     } finally {
       setLoading(false);
     }
   };
+
+  const availableSubjectColumns = useMemo(() => {
+    return headers.filter(h => h !== mapping.name && h !== mapping.class);
+  }, [headers, mapping.name, mapping.class]);
 
   const isMappingValid = mapping.name && mapping.class && Object.keys(mapping.subjects).length > 0;
 
@@ -197,7 +254,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
         {step === 1 && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4">
             <div className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center relative group hover:border-blue-400 transition-all">
-              <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <input type="file" multiple={structure === 'multi-file-single'} onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               <Upload className="w-12 h-12 text-blue-600 mx-auto mb-4 group-hover:scale-110 transition-transform" />
               <h3 className="text-lg font-bold text-gray-800">Drop your Excel files here</h3>
               <p className="text-sm text-gray-400">Supported formats: .xlsx, .xls</p>
@@ -210,7 +267,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                       <FileText className="w-4 h-4 text-gray-400" />
                       <span className="text-xs font-bold text-gray-700 truncate max-w-[150px]">{f.name}</span>
                     </div>
-                    <button onClick={() => removeFile(i)} className="p-1 hover:bg-gray-200 rounded-lg text-gray-400">
+                    <button onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="p-1 hover:bg-gray-200 rounded-lg text-gray-400">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -221,100 +278,118 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
         )}
 
         {step === 2 && (
-          <div className="space-y-8 animate-in slide-in-from-right-4">
+          <div className="space-y-8 animate-in slide-in-from-right-4 overflow-y-auto max-h-[500px]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <LayoutGrid className="w-3 h-3" /> Data Scope
-                </label>
-                <div className="grid grid-cols-1 gap-3">
-                  <button onClick={() => setMode('complete')} className={`p-4 rounded-2xl border text-left transition-all ${mode === 'complete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-gray-800 text-sm">Full Cohort Data</span>
-                      {mode === 'complete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
-                    </div>
-                    <p className="text-[10px] text-gray-500">Dataset contains entire school/grade records.</p>
-                  </button>
-                  <button onClick={() => setMode('incomplete')} className={`p-4 rounded-2xl border text-left transition-all ${mode === 'incomplete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-gray-800 text-sm">Partial/Class Sample</span>
-                      {mode === 'incomplete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
-                    </div>
-                    <p className="text-[10px] text-gray-500">Dataset only contains specific groups or missing students.</p>
-                  </button>
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <LayoutGrid className="w-3 h-3" /> Data Mode
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button onClick={() => setMode('complete')} className={`p-4 rounded-xl border text-left transition-all ${mode === 'complete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">Whole School (Cohort)</span>
+                        {mode === 'complete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">File contains all student records for full ranking computation.</p>
+                    </button>
+                    <button onClick={() => setMode('incomplete')} className={`p-4 rounded-xl border text-left transition-all ${mode === 'incomplete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">Partial Sample / Group</span>
+                        {mode === 'incomplete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">File only contains specific groups. Ranks might be skewed.</p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <ListFilter className="w-3 h-3" /> Table Layout
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button onClick={() => setStructure('multi-file-single')} className={`p-4 rounded-xl border text-left transition-all ${structure === 'multi-file-single' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">One Exam Per File</span>
+                        {structure === 'multi-file-single' && <CheckCircle2 className="w-4 h-4 text-orange-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">Traditional format. Select multiple files to build a timeline.</p>
+                    </button>
+                    <button onClick={() => setStructure('single-file-multi')} className={`p-4 rounded-xl border text-left transition-all ${structure === 'single-file-multi' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">Multi-Exam Summary Table</span>
+                        {structure === 'single-file-multi' && <CheckCircle2 className="w-4 h-4 text-orange-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">Single file with grouped student records (e.g. 5 rows for 1 student).</p>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Settings2 className="w-3 h-3" /> Calculation Logic
-                </label>
-                <div className="grid grid-cols-1 gap-3">
-                  <button onClick={() => setRankSource('recalculate')} className={`p-4 rounded-2xl border text-left transition-all ${rankSource === 'recalculate' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-gray-800 text-sm">Recalculate Rankings</span>
-                      {rankSource === 'recalculate' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
-                    </div>
-                    <p className="text-[10px] text-gray-500">System generates new ranks based on scores.</p>
-                  </button>
-                  <button onClick={() => setRankSource('imported')} className={`p-4 rounded-2xl border text-left transition-all ${rankSource === 'imported' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-gray-800 text-sm">Use Imported Ranks</span>
-                      {rankSource === 'imported' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
-                    </div>
-                    <p className="text-[10px] text-gray-500">Directly use ranking data from the Excel files.</p>
-                  </button>
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Settings2 className="w-3 h-3" /> Ranking Authority
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button onClick={() => setRankSource('recalculate')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'recalculate' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">System Calculation</span>
+                        {rankSource === 'recalculate' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">Derive all rankings automatically based on total scores.</p>
+                    </button>
+                    <button onClick={() => setRankSource('imported')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'imported' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-gray-800 text-sm">Imported Metadata</span>
+                        {rankSource === 'imported' && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500">Use pre-existing ranking columns from your Excel file.</p>
+                    </button>
+                  </div>
                 </div>
+                {structure === 'single-file-multi' && (
+                  <div className="space-y-2 p-5 bg-gray-50 rounded-2xl border border-gray-100 animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Define Exam Sequence (Comma separated)</label>
+                    <input type="text" value={periodNamesInput} onChange={(e) => setPeriodNamesInput(e.target.value)} placeholder="e.g. Sep Monthly, Mid-term, Dec Monthly..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p className="text-[8px] text-gray-400 leading-tight mt-1">Order should match the sequence of appearances for each student in the file.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
-            <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl flex gap-3 mb-6">
-              <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-              <p className="text-[11px] text-yellow-800 leading-relaxed font-medium">
-                Map your Excel column headers to system fields. Required fields are Name, Class, and at least one Subject.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-6 animate-in slide-in-from-right-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Base Identity</h4>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity Columns</h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-700">Student Name</span>
-                    <select value={mapping.name} onChange={(e) => setMapping({...mapping, name: e.target.value})} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Column...</option>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Student Name</span>
+                    <select value={mapping.name} onChange={(e) => setMapping({...mapping, name: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">-- Choose Column --</option>
                       {headers.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-700">Class Label</span>
-                    <select value={mapping.class} onChange={(e) => setMapping({...mapping, class: e.target.value})} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Column...</option>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Class Group</span>
+                    <select value={mapping.class} onChange={(e) => setMapping({...mapping, class: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">-- Choose Column --</option>
                       {headers.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
-
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Stats</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-700">School-wide Rank</span>
-                    <select 
-                      disabled={rankSource === 'recalculate'}
-                      value={mapping.totalRank} 
-                      onChange={(e) => setMapping({...mapping, totalRank: e.target.value})} 
-                      className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <option value="">(Optional/None)</option>
-                      {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                  </div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Metrices</h4>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Total Rank</span>
+                  <select disabled={rankSource === 'recalculate'} value={mapping.totalRank} onChange={(e) => setMapping({...mapping, totalRank: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                    <option value="">(Not Specified)</option>
+                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -322,44 +397,41 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
             <div className="space-y-4 pt-6">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-between">
                 <span>Subject Mapping</span>
-                <span className="text-blue-600 normal-case font-bold">{Object.keys(mapping.subjects).length} Subjects Mapped</span>
+                <span className="text-blue-600 normal-case font-bold">{Object.keys(mapping.subjects).length} Selected</span>
               </h4>
               <div className="grid grid-cols-1 gap-2">
-                {headers.filter(h => h !== mapping.name && h !== mapping.class && !h.includes('名') && !h.includes('位')).map(h => (
-                  <div key={h} className="bg-gray-50 p-3 rounded-xl flex items-center justify-between border border-gray-100 hover:border-blue-200 transition-all">
+                {availableSubjectColumns.length === 0 && <p className="text-center py-12 text-gray-400 text-sm italic border-2 border-dashed rounded-2xl">First specify Name and Class columns to reveal remaining fields.</p>}
+                {availableSubjectColumns.map(h => (
+                  <div key={h} className={`bg-gray-50 p-4 rounded-xl flex items-center justify-between border transition-all ${mapping.subjects[h] ? 'border-blue-200 bg-blue-50/50' : 'border-gray-100 hover:border-blue-300'}`}>
                     <div className="flex items-center gap-3">
-                      <Table className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs font-bold text-gray-700">{h}</span>
+                      <Table className={`w-4 h-4 ${mapping.subjects[h] ? 'text-blue-500' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-bold ${mapping.subjects[h] ? 'text-blue-900' : 'text-gray-700'}`}>{h}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-2 mr-4">
-                        <input 
-                          type="checkbox" 
-                          checked={!!mapping.subjects[h]} 
-                          onChange={(e) => {
-                            const newSubs = { ...mapping.subjects };
-                            if (e.target.checked) newSubs[h] = h;
-                            else delete newSubs[h];
-                            setMapping({...mapping, subjects: newSubs});
-                          }}
-                          className="w-4 h-4 rounded text-blue-600"
-                        />
-                        <span className="text-[10px] font-bold text-gray-400">Include</span>
-                      </div>
-                      {rankSource === 'imported' && (
-                        <select 
-                          value={mapping.subjectRanks[h] || ''} 
-                          onChange={(e) => {
-                            const newRanks = { ...mapping.subjectRanks };
-                            newRanks[h] = e.target.value;
-                            setMapping({...mapping, subjectRanks: newRanks});
-                          }}
-                          className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] outline-none"
-                        >
-                          <option value="">Map Rank Column...</option>
-                          {headers.map(head => <option key={head} value={head}>{head}</option>)}
-                        </select>
+                    <div className="flex items-center gap-4">
+                      {rankSource === 'imported' && mapping.subjects[h] && (
+                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm animate-in fade-in slide-in-from-right-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">Rank Col:</span>
+                          <select 
+                            value={mapping.subjectRanks[h] || ''} 
+                            onChange={(e) => setMapping({...mapping, subjectRanks: { ...mapping.subjectRanks, [h]: e.target.value }})}
+                            className="bg-transparent text-[10px] outline-none font-bold text-indigo-600"
+                          >
+                            <option value="">(None)</option>
+                            {headers.map(head => <option key={head} value={head}>{head}</option>)}
+                          </select>
+                        </div>
                       )}
+                      <input 
+                        type="checkbox" 
+                        checked={!!mapping.subjects[h]} 
+                        onChange={(e) => {
+                          const newSubs = { ...mapping.subjects };
+                          if (e.target.checked) newSubs[h] = h;
+                          else delete newSubs[h];
+                          setMapping({...mapping, subjects: newSubs});
+                        }}
+                        className="w-5 h-5 rounded text-blue-600 cursor-pointer border-gray-300 focus:ring-blue-500"
+                      />
                     </div>
                   </div>
                 ))}
@@ -369,29 +441,21 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
         )}
       </div>
 
-      <div className="bg-gray-50 p-6 flex justify-between items-center">
-        <button onClick={onCancel} className="text-gray-500 font-bold hover:text-gray-800 px-4 py-2 transition-all">Cancel</button>
+      <div className="bg-gray-50 p-8 flex justify-between items-center border-t border-gray-100">
+        <button onClick={onCancel} className="text-gray-500 font-bold hover:text-gray-800 transition-colors">Discard & Close</button>
         <div className="flex gap-4">
           {step > 1 && (
-            <button onClick={() => setStep(step - 1)} className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-white transition-all">
+            <button onClick={() => setStep(step - 1)} className="px-8 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-100 transition-all flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
           )}
           {step < 3 ? (
-            <button 
-              disabled={files.length === 0}
-              onClick={() => setStep(step + 1)} 
-              className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-            >
+            <button disabled={files.length === 0} onClick={() => setStep(step + 1)} className="px-10 py-3 rounded-xl bg-blue-600 text-white font-bold disabled:opacity-50 hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center gap-2">
               Continue <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <button 
-              disabled={!isMappingValid || loading}
-              onClick={handleFinalImport}
-              className={`flex items-center gap-2 px-10 py-2.5 rounded-xl bg-green-600 text-white font-bold shadow-lg shadow-green-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 ${loading ? 'animate-pulse' : ''}`}
-            >
-              {loading ? 'Processing...' : 'Complete Import'} <CheckCircle2 className="w-4 h-4" />
+            <button disabled={!isMappingValid || loading} onClick={handleFinalImport} className="px-12 py-3 rounded-xl bg-green-600 text-white font-bold disabled:opacity-50 hover:bg-green-700 shadow-lg shadow-green-100 transition-all flex items-center gap-2">
+              {loading ? 'Processing Data...' : 'Confirm & Build Dashboard'} <CheckCircle2 className="w-4 h-4" />
             </button>
           )}
         </div>
