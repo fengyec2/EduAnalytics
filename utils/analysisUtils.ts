@@ -30,8 +30,6 @@ export const calculateHistoricalRanks = (students: StudentRecord[]) => {
 
 /**
  * 计算全周期、全科目的名次映射
- * 用于分析单科上线情况
- * 返回格式: { [PeriodName]: { [SubjectName]: { [StudentName]: Rank } } }
  */
 export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subjects: string[]) => {
   const allPeriods = Array.from(new Set(students.flatMap(s => s.history.map(h => h.period))));
@@ -57,6 +55,60 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
   });
 
   return result;
+};
+
+/**
+ * 计算进退步系数
+ * z = 2 * (x - y) / (x + y)
+ * x: 第一次考试排名, y: 第二次考试排名
+ */
+export const calculateProgressCoefficient = (x: number, y: number): number => {
+  if (x <= 0 || y <= 0) return 0;
+  const z = (2 * (x - y)) / (x + y);
+  return parseFloat(z.toFixed(2));
+};
+
+/**
+ * 获取进退步分析全量数据
+ */
+export const getProgressAnalysisData = (
+  students: StudentRecord[],
+  periodX: string,
+  periodY: string,
+  allHistoricalRanks: Record<string, Record<string, number>>
+) => {
+  if (!periodX || !periodY) return [];
+
+  const ranksX = allHistoricalRanks[periodX] || {};
+  const ranksY = allHistoricalRanks[periodY] || {};
+
+  return students.map(s => {
+    const x = ranksX[s.name];
+    const y = ranksY[s.name];
+    
+    // 如果某次考试缺考，则不参与计算
+    if (x === undefined || y === undefined) return null;
+
+    const coefficient = calculateProgressCoefficient(x, y);
+    const rankChange = x - y; // 正数为进步（名次减小），负数为退步（名次增大）
+    
+    // 复用之前的连续进退步逻辑
+    const streakInfo = calculateStreakInfo(s, allHistoricalRanks);
+    let streakCount = 0;
+    if (streakInfo && streakInfo.count > 0) {
+      streakCount = streakInfo.type === 'improvement' ? streakInfo.count : -streakInfo.count;
+    }
+
+    return {
+      name: s.name,
+      class: s.class,
+      rankX: x,
+      rankY: y,
+      rankChange,
+      coefficient,
+      streakCount
+    };
+  }).filter((d): d is NonNullable<typeof d> => d !== null);
 };
 
 /**
