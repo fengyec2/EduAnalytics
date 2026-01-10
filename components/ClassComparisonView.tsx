@@ -1,16 +1,17 @@
 
 import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Filter, Table as TableIcon, Users, Trophy, BarChart2, Star, TrendingUp, Zap } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Trophy, BarChart2, Star, TrendingUp, Zap, Users } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface ClassComparisonViewProps {
   selectedPeriod: string;
   classes: string[];
   selectedClasses: string[];
   setSelectedClasses: React.Dispatch<React.SetStateAction<string[]>>;
-  classComparisonData: any[]; // [{ name: 'Math', 'Class 1': 90, ... }]
-  rankingDistributionData: any[]; // [{ name: 'Top 10', 'Class 1': 2, ... }]
+  classComparisonData: any[];
+  rankingDistributionData: any[];
   colors: string[];
   periodData: any[];
 }
@@ -19,60 +20,28 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
   selectedPeriod, classes, selectedClasses, setSelectedClasses, classComparisonData, rankingDistributionData, colors, periodData 
 }) => {
   
-  // 1. Calculate class-specific summaries
-  const classSummaries = useMemo(() => {
-    return selectedClasses.map(cls => {
-      const clsStudents = periodData.filter(s => s.class === cls);
-      const totalAvg = clsStudents.length > 0 
-        ? clsStudents.reduce((acc, s) => acc + s.currentTotal, 0) / clsStudents.length 
-        : 0;
-      
-      const top10Count = clsStudents.filter(s => s.periodSchoolRank <= 10).length;
-      const top50Count = clsStudents.filter(s => s.periodSchoolRank <= 50).length;
+  const classSummaries = useMemo(() => 
+    AnalysisEngine.getClassSummaries(periodData, selectedClasses),
+    [selectedClasses, periodData]
+  );
 
-      return {
-        className: cls,
-        count: clsStudents.length,
-        average: parseFloat(totalAvg.toFixed(2)),
-        top10: top10Count,
-        top50: top50Count
-      };
-    });
-  }, [selectedClasses, periodData]);
+  const leaderboard = useMemo(() => 
+    AnalysisEngine.getClassLeaderboard(classSummaries),
+    [classSummaries]
+  );
 
-  // 2. Determine "Leaders" for the Honor Board
-  const leaderboard = useMemo(() => {
-    if (classSummaries.length === 0) return null;
-    return {
-      highestAvg: [...classSummaries].sort((a, b) => b.average - a.average)[0],
-      mostTop10: [...classSummaries].sort((a, b) => b.top10 - a.top10)[0],
-      mostTop50: [...classSummaries].sort((a, b) => b.top50 - a.top50)[0],
-    };
-  }, [classSummaries]);
+  const rowMaxMap = useMemo(() => 
+    AnalysisEngine.calculateHeatmapMaxValues(classComparisonData, selectedClasses),
+    [classComparisonData, selectedClasses]
+  );
 
-  // 3. Calculate max values per row for heatmap highlighting
-  const rowMaxMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    classComparisonData.forEach(row => {
-      const values = selectedClasses.map(cls => row[cls] || 0);
-      map[row.name] = Math.max(...values);
-    });
-    return map;
-  }, [classComparisonData, selectedClasses]);
-
-  const distRowMaxMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    rankingDistributionData.forEach(row => {
-      const values = selectedClasses.map(cls => row[cls] || 0);
-      map[row.name] = Math.max(...values);
-    });
-    return map;
-  }, [rankingDistributionData, selectedClasses]);
+  const distRowMaxMap = useMemo(() => 
+    AnalysisEngine.calculateHeatmapMaxValues(rankingDistributionData, selectedClasses),
+    [rankingDistributionData, selectedClasses]
+  );
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      
-      {/* 1. Header & Selection */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-gray-900">Class Comparison Analysis</h2>
@@ -91,7 +60,6 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Honors Board (Leaderboard) */}
       {leaderboard && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-amber-50 to-orange-100 p-6 rounded-3xl border border-amber-200 shadow-sm relative overflow-hidden group">
@@ -123,7 +91,6 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
       )}
 
-      {/* 3. Competitive Performance Table */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-lg overflow-hidden">
         <div className="px-8 py-6 bg-gray-900 text-white flex items-center justify-between">
           <div>
@@ -149,7 +116,6 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {/* Overall Avg Row */}
               <tr className="bg-blue-50/10">
                 <td className="px-8 py-5 font-black text-blue-600 flex items-center gap-2">
                   <Trophy className="w-4 h-4" /> TOTAL AVG
@@ -209,7 +175,6 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Visualized Benchmarks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartContainer title="Subject Performance Gap">
           <ResponsiveContainer width="100%" height="100%">

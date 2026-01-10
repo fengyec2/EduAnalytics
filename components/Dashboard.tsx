@@ -36,47 +36,31 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
   });
 
-  // 1. 调用 Engine 计算全周期总分排名映射
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
     [data.students]
   );
 
-  // 1.1 调用 Engine 计算全周期单科排名映射
   const allSubjectRanks = useMemo(() => 
     AnalysisEngine.calculateSubjectHistoricalRanks(data.students, data.subjects),
     [data.students, data.subjects]
   );
 
-  // 2. 调用 Engine 计算全周期年级平均分
   const gradeAveragesByPeriod = useMemo(() => 
     AnalysisEngine.calculateGradeAverages(data.students), 
     [data.students]
   );
 
-  // 3. 构造当前所选周期的快照数据
-  const periodData = useMemo(() => {
-    if (!selectedPeriod) return [];
-    const ranks = allHistoricalRanks[selectedPeriod] || {};
-    return data.students.map(s => {
-      const historyItem = s.history.find(h => h.period === selectedPeriod);
-      return {
-        ...s,
-        currentTotal: historyItem?.totalScore || 0,
-        currentAverage: historyItem?.averageScore || 0,
-        currentScores: historyItem?.scores || {},
-        periodSchoolRank: ranks[s.name] || 9999
-      };
-    }).sort((a, b) => a.periodSchoolRank - b.periodSchoolRank);
-  }, [data.students, selectedPeriod, allHistoricalRanks]);
+  const periodData = useMemo(() => 
+    AnalysisEngine.getPeriodSnapshot(data.students, selectedPeriod, allHistoricalRanks),
+    [data.students, selectedPeriod, allHistoricalRanks]
+  );
 
-  // 4. 调用 Engine 计算考试统计参数
   const examParameters = useMemo(() => 
     AnalysisEngine.calculateExamParameters(periodData, data.subjects),
     [periodData, data.subjects]
   );
 
-  // 以下为各视图所需的 derived data
   const aboveLineCount = useMemo(() => {
     const limit = thresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;

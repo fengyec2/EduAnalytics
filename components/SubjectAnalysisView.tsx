@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Filter, Search, UserX, Info } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface SubjectAnalysisViewProps {
   selectedPeriod: string;
@@ -21,80 +22,25 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
   const [selectedSubject, setSelectedSubject] = useState(subjects[0] || '');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([classes[0]]);
 
-  // 计算当前的特控线限制（作为未上线的界限）
   const teKongLimit = useMemo(() => {
     return thresholdType === 'rank' 
       ? thresholds['特控'] 
       : Math.round((thresholds['特控'] / 100) * totalStudents);
   }, [thresholds, thresholdType, totalStudents]);
 
-  const distributionData = useMemo(() => {
-    if (!selectedPeriod || !selectedSubject) return [];
+  const distributionData = useMemo(() => 
+    AnalysisEngine.getSubjectDistribution(
+      selectedPeriod, selectedSubject, selectedClasses, periodData, allSubjectRanks, thresholds, thresholdType, totalStudents
+    ),
+    [selectedPeriod, selectedSubject, selectedClasses, periodData, allSubjectRanks, thresholds, thresholdType, totalStudents]
+  );
 
-    const subjectRanks = allSubjectRanks[selectedPeriod]?.[selectedSubject] || {};
-    const filteredStudents = periodData.filter(s => selectedClasses.includes(s.class));
-
-    // Calculate absolute limits based on threshold type
-    const getLimit = (key: string) => {
-      if (key === '未上线') return Infinity;
-      return thresholdType === 'rank' 
-        ? thresholds[key] 
-        : Math.round((thresholds[key] / 100) * totalStudents);
-    };
-
-    const limits = {
-      '清北': getLimit('清北'),
-      'C9': getLimit('C9'),
-      '高分数': getLimit('高分数'),
-      '名校': getLimit('名校'),
-      '特控': getLimit('特控'),
-      '未上线': Infinity
-    };
-
-    // Calculate exclusive buckets
-    const results = [
-      { name: '清北线', count: 0, color: '#a855f7' },
-      { name: 'C9线', count: 0, color: '#22c55e' },
-      { name: '高分线', count: 0, color: '#3b82f6' },
-      { name: '名校线', count: 0, color: '#94a3b8' },
-      { name: '特控线', count: 0, color: '#eab308' },
-      { name: '未上线', count: 0, color: '#ef4444' },
-    ];
-
-    filteredStudents.forEach(s => {
-      const rank = subjectRanks[s.name];
-      if (!rank) return;
-
-      if (rank <= limits['清北']) results[0].count++;
-      else if (rank <= limits['C9']) results[1].count++;
-      else if (rank <= limits['高分数']) results[2].count++;
-      else if (rank <= limits['名校']) results[3].count++;
-      else if (rank <= limits['特控']) results[4].count++;
-      else results[5].count++;
-    });
-
-    return results;
-  }, [selectedPeriod, selectedSubject, selectedClasses, allSubjectRanks, thresholds, thresholdType, totalStudents, periodData]);
-
-  // 提取未上线学生名单
-  const belowLineStudents = useMemo(() => {
-    if (!selectedPeriod || !selectedSubject) return [];
-    
-    const subjectRanks = allSubjectRanks[selectedPeriod]?.[selectedSubject] || {};
-    
-    return periodData
-      .filter(s => selectedClasses.includes(s.class))
-      .filter(s => {
-        const rank = subjectRanks[s.name];
-        return rank && rank > teKongLimit;
-      })
-      .map(s => ({
-        name: s.name,
-        rank: subjectRanks[s.name],
-        class: s.class
-      }))
-      .sort((a, b) => a.rank - b.rank);
-  }, [selectedPeriod, selectedSubject, selectedClasses, allSubjectRanks, teKongLimit, periodData]);
+  const belowLineStudents = useMemo(() => 
+    AnalysisEngine.getBelowLineStudents(
+      selectedPeriod, selectedSubject, selectedClasses, periodData, allSubjectRanks, teKongLimit
+    ),
+    [selectedPeriod, selectedSubject, selectedClasses, periodData, allSubjectRanks, teKongLimit]
+  );
 
   const toggleClass = (cls: string) => {
     setSelectedClasses(prev => 
@@ -104,7 +50,6 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      {/* 筛选控制器 */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
         <div className="space-y-3 flex-1">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -141,7 +86,6 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         </div>
       </div>
 
-      {/* 柱状分布图 */}
       <ChartContainer title={`${selectedSubject} Distribution in Selected Classes (${selectedPeriod})`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -163,7 +107,6 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         </ResponsiveContainer>
       </ChartContainer>
 
-      {/* 未上线名单展示 */}
       <div className="bg-white rounded-3xl border border-rose-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="px-8 py-6 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
           <div>

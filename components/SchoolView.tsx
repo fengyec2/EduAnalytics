@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface SchoolViewProps {
   selectedPeriod: string;
@@ -26,11 +27,11 @@ const SchoolView: React.FC<SchoolViewProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   
   const admissionLabels = [
-    { key: '清北', color: '#be123c' }, // Rose 700
-    { key: 'C9', color: '#1e40af' },    // Blue 800
-    { key: '高分数', color: '#0369a1' }, // Sky 700
-    { key: '名校', color: '#0d9488' },   // Teal 600
-    { key: '特控', color: '#10b981' },   // Emerald 500
+    { key: '清北', color: '#be123c' },
+    { key: 'C9', color: '#1e40af' },
+    { key: '高分数', color: '#0369a1' },
+    { key: '名校', color: '#0d9488' },
+    { key: '特控', color: '#10b981' },
   ];
 
   const handleThresholdChange = (key: string, val: string) => {
@@ -38,44 +39,18 @@ const SchoolView: React.FC<SchoolViewProps> = ({
     setThresholds(prev => ({ ...prev, [key]: num }));
   };
 
-  const admissionDistribution = useMemo(() => {
-    if (!periodData.length) return [];
+  const admissionDistribution = useMemo(() => 
+    AnalysisEngine.getAdmissionDistribution(periodData, thresholds, thresholdType, admissionLabels),
+    [periodData, thresholds, thresholdType]
+  );
 
-    const totalCount = periodData.length;
-    const sortedThresholds = [...admissionLabels].map(l => ({
-      ...l,
-      limit: thresholdType === 'rank' 
-        ? thresholds[l.key] 
-        : Math.round((thresholds[l.key] / 100) * totalCount)
-    })).sort((a, b) => a.limit - b.limit);
-
-    const results = sortedThresholds.map((t, idx) => {
-      const prevLimit = idx === 0 ? 0 : sortedThresholds[idx - 1].limit;
-      const count = periodData.filter(s => s.periodSchoolRank > prevLimit && s.periodSchoolRank <= t.limit).length;
-      return { name: t.key, value: count, color: t.color };
-    });
-
-    // Add "Below Line" (未上线)
-    const lastLimit = sortedThresholds[sortedThresholds.length - 1].limit;
-    results.push({
-      name: '未上线',
-      value: periodData.filter(s => s.periodSchoolRank > lastLimit).length,
-      color: '#94a3b8' // Slate 400
-    });
-
-    return results.filter(r => r.value > 0);
-  }, [periodData, thresholds, thresholdType]);
-
-  const subjectAvgs = useMemo(() => {
-    return subjects.map(sub => {
-      const avg = periodData.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / periodData.length;
-      return { name: sub, avg: parseFloat(avg.toFixed(2)) };
-    });
-  }, [periodData, subjects]);
+  const subjectAvgs = useMemo(() => 
+    AnalysisEngine.getSubjectAverages(periodData, subjects),
+    [periodData, subjects]
+  );
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      {/* Admission Line Settings */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <button 
           onClick={() => setShowSettings(!showSettings)}
@@ -131,7 +106,6 @@ const SchoolView: React.FC<SchoolViewProps> = ({
         )}
       </section>
 
-      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartContainer title={`Admissions Status Analysis (${selectedPeriod})`}>
           <ResponsiveContainer width="100%" height="100%">

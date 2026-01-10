@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, BarChart4, History as HistoryIcon, Target } from 'lucide-react';
+import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -47,90 +47,41 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     return selectedStudent.history.reduce((acc, h) => acc + h.totalScore, 0) / selectedStudent.history.length;
   }, [selectedStudent]);
 
-  // 计算进退步状态
   const streakInfo = useMemo(() => 
     selectedStudent ? AnalysisEngine.calculateStreakInfo(selectedStudent, allHistoricalRanks) : null,
     [selectedStudent, allHistoricalRanks]
   );
 
-  // 雷达图数据计算
   const radarData = useMemo(() => {
     if (!selectedStudent || !selectedPeriod) return [];
-    const currentScores = selectedStudent.history.find(h => h.period === selectedPeriod)?.scores || {};
-    
-    // 计算对比基准（班级或年级平均分）
-    const baselineSource = radarBaseline === 'class' 
-      ? periodData.filter(s => s.class === selectedStudent.class)
-      : periodData;
-
-    return subjects.map(sub => {
-      const studentScore = currentScores[sub] || 0;
-      const baselineAvg = baselineSource.length > 0
-        ? baselineSource.reduce((acc, s) => acc + (s.currentScores?.[sub] || 0), 0) / baselineSource.length
-        : 0;
-
-      return {
-        subject: sub,
-        score: studentScore,
-        baseline: parseFloat(baselineAvg.toFixed(1)),
-        fullMark: 150 // 假设满分用于比例参考
-      };
-    });
+    return AnalysisEngine.getStudentRadarData(selectedStudent, selectedPeriod, subjects, radarBaseline, periodData);
   }, [selectedStudent, selectedPeriod, subjects, radarBaseline, periodData]);
 
-  // 单科历史排名趋势数据
   const subjectTrendData = useMemo(() => {
     if (!selectedStudent || !selectedSubjectForTrend) return [];
-    return selectedStudent.history.map(h => ({
-      period: h.period,
-      rank: allSubjectRanks[h.period]?.[selectedSubjectForTrend]?.[selectedStudent.name] || null
-    })).filter(d => d.rank !== null);
+    return AnalysisEngine.getStudentSubjectTrend(selectedStudent, selectedSubjectForTrend, allSubjectRanks);
   }, [selectedStudent, selectedSubjectForTrend, allSubjectRanks]);
 
   const getStatusLabel = useCallback((period: string, studentName: string) => {
     const rank = allHistoricalRanks[period]?.[studentName];
     if (!rank) return '-';
-
-    const lines = [
-      { key: '清北', label: '清北' },
-      { key: 'C9', label: 'C9' },
-      { key: '高分数', label: '高分' },
-      { key: '名校', label: '名校' },
-      { key: '特控', label: '特控' },
-    ];
-
-    for (const line of lines) {
-      const limit = thresholdType === 'rank' 
-        ? thresholds[line.key] 
-        : Math.round((thresholds[line.key] / 100) * totalStudents);
-      
-      if (rank <= limit) return line.label;
-    }
-    return '未上线';
+    return AnalysisEngine.getAdmissionCategory(rank, thresholds, thresholdType, totalStudents);
   }, [allHistoricalRanks, thresholds, thresholdType, totalStudents]);
 
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
     const rank = allSubjectRanks[period]?.[subject]?.[studentName];
     if (!rank) return 'text-gray-400';
 
-    const lines = [
-      { key: '清北', style: 'bg-purple-100 text-purple-900 border-purple-200 font-bold border-b-2' },
-      { key: 'C9', style: 'bg-green-100 text-green-900 border-green-200 font-bold border-b-2' },
-      { key: '高分数', style: 'bg-blue-100 text-blue-900 border-blue-200 font-bold border-b-2' },
-      { key: '名校', style: 'text-gray-600' }, 
-      { key: '特控', style: 'bg-yellow-100 text-yellow-900 border-yellow-200 font-bold border-b-2' },
-    ];
-
-    for (const line of lines) {
-      const limit = thresholdType === 'rank' 
-        ? thresholds[line.key] 
-        : Math.round((thresholds[line.key] / 100) * totalStudents);
-      
-      if (rank <= limit) {
-        return line.style;
-      }
-    }
-    return 'bg-red-50 text-red-700 border-red-100 font-bold border-b-2';
+    const category = AnalysisEngine.getSubjectRankCategory(rank, thresholds, thresholdType, totalStudents);
+    const styles: Record<string, string> = {
+      'king': 'bg-purple-100 text-purple-900 border-purple-200 font-bold border-b-2',
+      'elite': 'bg-green-100 text-green-900 border-green-200 font-bold border-b-2',
+      'high': 'bg-blue-100 text-blue-900 border-blue-200 font-bold border-b-2',
+      'standard': 'text-gray-600',
+      'pass': 'bg-yellow-100 text-yellow-900 border-yellow-200 font-bold border-b-2',
+      'fail': 'bg-red-50 text-red-700 border-red-100 font-bold border-b-2'
+    };
+    return styles[category] || styles['standard'];
   }, [allSubjectRanks, thresholds, thresholdType, totalStudents]);
 
   return (
@@ -324,16 +275,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                   ))}
                 </tbody>
               </table>
-            </div>
-            
-            <div className="px-8 py-4 bg-gray-50 flex flex-wrap gap-4 border-t border-gray-100">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Legend:</span>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-purple-100 border border-purple-200" /> <span className="text-[10px] text-gray-600">清北线</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-100 border border-green-200" /> <span className="text-[10px] text-gray-600">C9线</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" /> <span className="text-[10px] text-gray-600">高分线</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded border border-gray-300" /> <span className="text-[10px] text-gray-600">名校线</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200" /> <span className="text-[10px] text-gray-600">特控线</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-50 border border-red-100" /> <span className="text-[10px] text-gray-600">未上线</span></div>
             </div>
           </div>
         </>
