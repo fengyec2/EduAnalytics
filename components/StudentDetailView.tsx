@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
@@ -70,12 +69,17 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
   }, [allHistoricalRanks, thresholds, thresholdType, totalStudents, selectedStudent]);
 
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
-    const subRanksForPeriod = allSubjectRanks[period]?.[subject] || {};
+    // Explicitly define subRanksForPeriod type as Record<string, number> to prevent unknown inference
+    const subRanksForPeriod: Record<string, number> = allSubjectRanks[period]?.[subject] || {};
     const rank = subRanksForPeriod[studentName];
     if (!rank) return 'text-gray-400';
 
-    // 关键修正：计算该科目在当次考试的真实参考人数
-    const subjectParticipants = Object.keys(subRanksForPeriod).length || totalStudents;
+    // 关键修正：对于 Historical Ledger，我们需要基于该科目在该时期的最大名次计算有效人数
+    // 这样才能在 Partial Dataset 模式下正确应用基于元数据推算的百分比阈值
+    // Added explicit type casting for Object.values result to resolve "unknown" spread in Math.max
+    const maxSubRankInPeriod = Math.max(...(Object.values(subRanksForPeriod) as number[]), 0);
+    const subjectParticipants = maxSubRankInPeriod || totalStudents;
+    
     const category = AnalysisEngine.getSubjectRankCategory(rank, thresholds, thresholdType, subjectParticipants);
     
     const styles: Record<string, string> = {
@@ -242,7 +246,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> Historical Grade Ledger</h3>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Note: 学科背景色基于该科目该次考试的实际参考人数动态换算</p>
+                <p className="text-[10px] text-gray-400 mt-1 italic">Note: 学科背景色严格基于导入元数据推算的百分比阈值与该次考试实际参考人数动态匹配。</p>
               </div>
             </div>
             <div className="overflow-x-auto">

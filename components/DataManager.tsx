@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Database, Plus, Trash2, GripVertical, AlertTriangle, CheckCircle2, FileSpreadsheet, Layers, Users, TrendingUp, Award, Info, X, BarChart, ChevronRight } from 'lucide-react';
 import { AnalysisState, ExamEntity } from '../types';
@@ -27,7 +26,8 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
     }
     // Extract unique periods from history of all students to handle cases where 
     // the first student might have missed some exams.
-    const allPeriods = Array.from(new Set(initialData.students.flatMap(s => s.history.map(h => h.period))));
+    // Fixed: Explicitly typed allPeriods as string[] to ensure correctly inferred elements for ExamEntity mapping.
+    const allPeriods: string[] = Array.from(new Set(initialData.students.flatMap(s => s.history.map(h => h.period))));
     
     // Generate ExamEntity list based on the comprehensive set of periods found in the data.
     // We explicitly use period as the key for mapping to avoid 'Property name does not exist on type ScoreSnapshot' errors.
