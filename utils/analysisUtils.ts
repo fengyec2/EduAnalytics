@@ -2,39 +2,6 @@
 import { StudentRecord, ScoreSnapshot } from '../types';
 
 /**
- * 获取特定周期、特定科目的名次计算基数（分母）
- * 如果存在导入的名次，则取最大名次值；否则取当前样本总数
- */
-export const getEffectiveCohortSize = (
-  period: string,
-  subject: string | null, // null 表示总分
-  periodData: any[],
-  allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
-  allHistoricalRanks: Record<string, Record<string, number>>
-): number => {
-  let maxRankFound = 0;
-
-  if (subject) {
-    // 处理单科名次基数
-    const subRanks = allSubjectRanks[period]?.[subject] || {};
-    const values = Object.values(subRanks);
-    if (values.length > 0) {
-      maxRankFound = Math.max(...values);
-    }
-  } else {
-    // 处理总分名次基数
-    const totalRanks = allHistoricalRanks[period] || {};
-    const values = Object.values(totalRanks);
-    if (values.length > 0) {
-      maxRankFound = Math.max(...values);
-    }
-  }
-
-  // 基数至少是当前文件内的学生数，防止数据异常
-  return Math.max(periodData.length, maxRankFound);
-};
-
-/**
  * 计算全周期总分名次映射
  */
 export const calculateHistoricalRanks = (students: StudentRecord[]) => {
@@ -125,26 +92,32 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
 
 /**
  * 根据导入的 Metadata 自动推算名次百分比阈值
+ * 改进点：使用最大名次作为分母，以解决 Partial Dataset 模式下的百分比偏离问题
  */
 export const deriveThresholdsFromMetadata = (
   periodData: any[], 
-  labels: { key: string, color: string }[],
-  cohortSize: number
+  labels: { key: string, color: string }[]
 ): Record<string, number> => {
   const derived: Record<string, number> = {};
-  if (cohortSize === 0) return derived;
+  if (periodData.length === 0) return derived;
 
-  let cumulativeCount = 0;
+  // 获取导入数据中的最大年级名次，作为该次考试的有效总人数估算
+  const maxGradeRank = Math.max(...periodData.map(s => s.periodSchoolRank || 0), periodData.length);
+  
   labels.forEach(label => {
-    const count = periodData.filter(s => {
+    // 找出该状态下的学生中，名次最大的那一个（即该线的名次值）
+    const studentsInStatus = periodData.filter(s => {
       const status = (s.currentStatus || '').trim();
       return status === label.key || status.includes(label.key);
-    }).length;
-    
-    cumulativeCount += count;
-    // 这里的推算目前还是基于样本内的分布，因为元数据 status 是样本自带的
-    // 我们将其存为相对于 cohortSize 的百分比
-    derived[label.key] = parseFloat(((cumulativeCount / periodData.length) * 100).toFixed(4));
+    });
+
+    if (studentsInStatus.length > 0) {
+      const maxRankInStatus = Math.max(...studentsInStatus.map(s => s.periodSchoolRank || 0));
+      // 计算该线在整个年级中的百分比
+      derived[label.key] = parseFloat(((maxRankInStatus / maxGradeRank) * 100).toFixed(4));
+    } else {
+      derived[label.key] = 0;
+    }
   });
 
   return derived;
@@ -170,15 +143,13 @@ export const getPeriodSnapshot = (students: StudentRecord[], selectedPeriod: str
 };
 
 /**
- * 计算总分上线分布
+ * 计算上线分布
  */
 export const getAdmissionDistribution = (
-  period: string,
   periodData: any[],
   thresholds: Record<string, number>,
   thresholdType: 'rank' | 'percent',
-  labels: { key: string, color: string }[],
-  allHistoricalRanks: Record<string, Record<string, number>>
+  labels: { key: string, color: string }[]
 ) => {
   if (!periodData.length) return [];
 
@@ -204,14 +175,12 @@ export const getAdmissionDistribution = (
     return results;
   }
 
-  // 关键修正：使用总分名次基数
-  const cohortSize = getEffectiveCohortSize(period, null, periodData, {}, allHistoricalRanks);
-
+  const effectiveTotal = Math.max(...periodData.map(s => s.periodSchoolRank || 0), periodData.length);
   const sortedThresholds = [...labels].map(l => ({
     ...l,
     limit: thresholdType === 'rank' 
       ? thresholds[l.key] 
-      : Math.round((thresholds[l.key] / 100) * cohortSize)
+      : Math.round((thresholds[l.key] / 100) * effectiveTotal)
   })).sort((a, b) => a.limit - b.limit);
 
   const results = sortedThresholds.map((t, idx) => {
@@ -231,7 +200,7 @@ export const getAdmissionDistribution = (
 };
 
 /**
- * 单科上线分布核心逻辑
+ * 单科上线分布核心逻辑：基于该科实际名次（Max Rank）动态计算排名线
  */
 export const getSubjectDistribution = (
   selectedPeriod: string,
@@ -239,15 +208,17 @@ export const getSubjectDistribution = (
   selectedClasses: string[],
   periodData: any[],
   allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
-  allHistoricalRanks: Record<string, Record<string, number>>,
   thresholds: Record<string, number>,
-  thresholdType: 'rank' | 'percent'
+  thresholdType: 'rank' | 'percent',
+  totalStudents: number 
 ) => {
   const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
   const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
   
-  // 核心：基于该科目的年级名次最大值来计算基数
-  const cohortSize = getEffectiveCohortSize(selectedPeriod, subject, periodData, allSubjectRanks, allHistoricalRanks);
+  // 关键改进：获取该科目在当次考试中的最大名次，作为该学科的“有效参考人数”
+  // 这在 Partial Dataset 模式下比 row count 更能反映真实分布
+  const maxSubRank = Math.max(...Object.values(subjectRanks), 0);
+  const effectiveSubjectPopulation = maxSubRank || totalStudents;
 
   const labels = [
     { key: '清北', color: '#be123c' },
@@ -258,13 +229,14 @@ export const getSubjectDistribution = (
   ];
 
   const results = labels.map((l, idx) => {
+    // 基于该学科的人数动态换算名次线
     const limit = thresholdType === 'rank' 
       ? thresholds[l.key] 
-      : Math.round((thresholds[l.key] / 100) * cohortSize);
+      : Math.round((thresholds[l.key] / 100) * effectiveSubjectPopulation);
     
     const prevLimit = idx === 0 ? 0 : (thresholdType === 'rank' 
       ? thresholds[labels[idx-1].key] 
-      : Math.round((thresholds[labels[idx-1].key] / 100) * cohortSize));
+      : Math.round((thresholds[labels[idx-1].key] / 100) * effectiveSubjectPopulation));
 
     const count = filteredData.filter(s => {
       const rank = subjectRanks[s.name];
@@ -274,11 +246,9 @@ export const getSubjectDistribution = (
     return { name: l.key, count, color: l.color };
   });
 
-  // Fixed the unintentional nested comparison of thresholdType in maxLimit calculation.
-  // In the 'else' branch where thresholdType is 'percent', the nested thresholdType === 'rank' check was redundant.
   const maxLimit = thresholdType === 'rank' 
     ? thresholds[labels[labels.length - 1].key] 
-    : Math.round((thresholds[labels[labels.length - 1].key] / 100) * cohortSize);
+    : Math.round((thresholds[labels[labels.length - 1].key] / 100) * effectiveSubjectPopulation);
   
   results.push({
     name: '未上线',
@@ -293,7 +263,7 @@ export const getSubjectDistribution = (
 };
 
 /**
- * 获取特定科目关注名单
+ * 获取特定科目未达上线标准的学生列表
  */
 export const getBelowLineStudents = (
   selectedPeriod: string,
@@ -301,16 +271,17 @@ export const getBelowLineStudents = (
   selectedClasses: string[],
   periodData: any[],
   allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
-  allHistoricalRanks: Record<string, Record<string, number>>,
   teKongThreshold: number,
   thresholdType: 'rank' | 'percent' = 'rank'
 ) => {
   const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
   const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
-  const cohortSize = getEffectiveCohortSize(selectedPeriod, subject, periodData, allSubjectRanks, allHistoricalRanks);
+  
+  const maxSubRank = Math.max(...Object.values(subjectRanks), 0);
+  const subjectParticipants = maxSubRank || filteredData.length;
   
   const effectiveLimit = thresholdType === 'percent' 
-    ? Math.round((teKongThreshold / 100) * cohortSize)
+    ? Math.round((teKongThreshold / 100) * subjectParticipants)
     : teKongThreshold;
 
   return filteredData
@@ -333,7 +304,7 @@ export const getSubjectRankCategory = (
   rank: number,
   thresholds: Record<string, number>,
   thresholdType: 'rank' | 'percent',
-  cohortSize: number
+  subjectParticipants: number
 ) => {
   const categories = [
     { key: '清北', type: 'king' },
@@ -346,7 +317,7 @@ export const getSubjectRankCategory = (
   for (const cat of categories) {
     const limit = thresholdType === 'rank' 
       ? thresholds[cat.key] 
-      : Math.round((thresholds[cat.key] / 100) * cohortSize);
+      : Math.round((thresholds[cat.key] / 100) * subjectParticipants);
     
     if (rank <= limit) return cat.type;
   }
@@ -413,11 +384,11 @@ export const calculateStreakInfo = (student: StudentRecord, allHistoricalRanks: 
   return { count, type, totalChange, steps };
 };
 
-export const getAdmissionCategory = (rank: number, thresholds: Record<string, number>, thresholdType: 'rank' | 'percent', cohortSize: number, snapshotStatus?: string) => {
+export const getAdmissionCategory = (rank: number, thresholds: Record<string, number>, thresholdType: 'rank' | 'percent', totalStudents: number, snapshotStatus?: string) => {
   if (snapshotStatus && snapshotStatus !== '' && snapshotStatus !== '未上线') return snapshotStatus;
   const lines = [{ key: '清北', label: '清北' }, { key: 'C9', label: 'C9' }, { key: '高分数', label: '高分' }, { key: '名校', label: '名校' }, { key: '特控', label: '特控' }];
   for (const line of lines) {
-    const limit = thresholdType === 'rank' ? thresholds[line.key] : Math.round((thresholds[line.key] / 100) * cohortSize);
+    const limit = thresholdType === 'rank' ? thresholds[line.key] : Math.round((thresholds[line.key] / 100) * totalStudents);
     if (rank <= limit) return line.label;
   }
   return '未上线';
@@ -432,37 +403,12 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
     let fullScore = max > 120 ? (max > 150 ? Math.ceil(max / 10) * 10 : 150) : (max > 100 ? 120 : 100);
     const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
     const stdDev = Math.sqrt(variance), median = n % 2 === 0 ? (scores[n/2 - 1] + scores[n/2]) / 2 : scores[Math.floor(n/2)];
-    
-    // 众数 (Mode) 计算逻辑
-    const frequency: Record<number, number> = {};
-    let maxFreq = 0;
-    scores.forEach(s => {
-      frequency[s] = (frequency[s] || 0) + 1;
-      if (frequency[s] > maxFreq) maxFreq = frequency[s];
-    });
-    const modeValues = Object.keys(frequency)
-      .filter(score => frequency[Number(score)] === maxFreq)
-      .map(Number);
-    const mode = maxFreq > 1 ? modeValues.join(', ') : '无';
-
     const difficulty = mean / fullScore;
     const splitIdx = Math.round(n * 0.27), top27 = scores.slice(n - splitIdx), bottom27 = scores.slice(0, splitIdx);
     const meanTop = top27.length > 0 ? top27.reduce((a, b) => a + b, 0) / top27.length : 0;
     const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
     const discrimination = (meanTop - meanBottom) / fullScore;
-    
-    stats.push({ 
-      subject: sub, 
-      participants: n, 
-      max, 
-      mean: parseFloat(mean.toFixed(2)), 
-      stdDev: parseFloat(stdDev.toFixed(2)), 
-      difficulty: parseFloat(difficulty.toFixed(2)), 
-      discrimination: parseFloat(discrimination.toFixed(2)), 
-      variance, 
-      median,
-      mode 
-    });
+    stats.push({ subject: sub, participants: n, max, mean: parseFloat(mean.toFixed(2)), stdDev: parseFloat(stdDev.toFixed(2)), difficulty: parseFloat(difficulty.toFixed(2)), discrimination: parseFloat(discrimination.toFixed(2)), variance, median });
   });
   const k = subjects.length, sumVarItems = stats.reduce((acc, s) => acc + s.variance, 0);
   const totalScores = periodData.map(s => s.currentTotal), meanTotal = totalScores.reduce((a, b) => a + b, 0) / n;

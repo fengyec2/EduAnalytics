@@ -65,73 +65,20 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     [data.students, selectedPeriod, allHistoricalRanks]
   );
 
-  // Added missing data calculations for comparison and kings views to fix compilation errors
-  const classComparisonData = useMemo(() => {
-    return data.subjects.map(sub => {
-      const row: any = { name: sub };
-      data.classes.forEach(cls => {
-        const clsStudents = periodData.filter(s => s.class === cls);
-        const avg = clsStudents.length > 0 
-          ? clsStudents.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / clsStudents.length 
-          : 0;
-        row[cls] = parseFloat(avg.toFixed(2));
-      });
-      return row;
-    });
-  }, [data.subjects, data.classes, periodData]);
-
-  const rankingDistributionData = useMemo(() => {
-    const brackets = [
-      { name: 'Top 10', limit: 10 },
-      { name: 'Top 50', limit: 50 },
-      { name: 'Top 100', limit: 100 },
-      { name: 'Top 300', limit: 300 }
-    ];
-    return brackets.map(b => {
-      const row: any = { name: b.name };
-      data.classes.forEach(cls => {
-        row[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= b.limit).length;
-      });
-      return row;
-    });
-  }, [data.classes, periodData]);
-
-  const kingsData = useMemo(() => {
-    return data.subjects.map(sub => {
-      const classStudents = periodData.filter(s => s.class === benchmarkClass);
-      const classMax = classStudents.length > 0 ? Math.max(...classStudents.map(s => s.currentScores[sub] || 0)) : 0;
-      const gradeMax = periodData.length > 0 ? Math.max(...periodData.map(s => s.currentScores[sub] || 0)) : 0;
-      return { subject: sub, classMax, gradeMax };
-    });
-  }, [data.subjects, periodData, benchmarkClass]);
-
-  const duelData = useMemo(() => {
-    return data.subjects.map(sub => {
-      const classStudents = periodData.filter(s => s.class === benchmarkClass);
-      const classMax = classStudents.length > 0 ? Math.max(...classStudents.map(s => s.currentScores[sub] || 0)) : 0;
-      const schoolFirst = periodData.length > 0 ? Math.max(...periodData.map(s => s.currentScores[sub] || 0)) : 0;
-      return { subject: sub, classFirst: classMax, schoolFirst };
-    });
-  }, [data.subjects, periodData, benchmarkClass]);
-
   const hasImportedStatus = useMemo(() => 
     periodData.some(s => s.currentStatus !== undefined && s.currentStatus !== ''),
     [periodData]
   );
 
-  // 获取总分基数用于阈值推算
-  const totalCohortSize = useMemo(() => 
-    AnalysisEngine.getEffectiveCohortSize(selectedPeriod, null, periodData, {}, allHistoricalRanks),
-    [selectedPeriod, periodData, allHistoricalRanks]
-  );
-
+  // 关键逻辑：如果存在导入的状态元数据，则自动推算有效的排名百分比阈值。
   const thresholds = useMemo(() => {
     if (hasImportedStatus) {
-      return AnalysisEngine.deriveThresholdsFromMetadata(periodData, admissionLabels, totalCohortSize);
+      return AnalysisEngine.deriveThresholdsFromMetadata(periodData, admissionLabels);
     }
     return manualThresholds;
-  }, [hasImportedStatus, periodData, totalCohortSize, manualThresholds]);
+  }, [hasImportedStatus, periodData, manualThresholds]);
 
+  // 改进点：元数据模式下，内部统一使用百分比类型，以便在 SubjectAnalysisView 中适配不同科目的总人数
   const effectiveThresholdType = hasImportedStatus ? 'percent' : thresholdType;
 
   const examParameters = useMemo(() => 
@@ -148,19 +95,44 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       }).length;
     }
 
-    const limit = effectiveThresholdType === 'rank' 
-      ? (thresholds['特控'] || 0) 
-      : Math.round(((thresholds['特控'] || 0) / 100) * totalCohortSize);
+    const limit = effectiveThresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
-  }, [periodData, thresholds, effectiveThresholdType, hasImportedStatus, totalCohortSize]);
+  }, [periodData, thresholds, effectiveThresholdType, hasImportedStatus]);
+
+  const classComparisonData = useMemo(() => data.subjects.map(sub => {
+    const entry: any = { name: sub };
+    selectedClasses.forEach(cls => {
+      const clsStudents = periodData.filter(s => s.class === cls);
+      entry[cls] = clsStudents.length > 0 ? parseFloat((clsStudents.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / clsStudents.length).toFixed(2)) : 0;
+    });
+    return entry;
+  }), [periodData, data.subjects, selectedClasses]);
+
+  const rankingDistributionData = useMemo(() => [10, 20, 50, 100, 200, 400].map(bucket => {
+    const entry: any = { name: `Top ${bucket}` };
+    selectedClasses.forEach(cls => { entry[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= bucket).length; });
+    return entry;
+  }), [periodData, selectedClasses]);
+
+  const kingsData = useMemo(() => data.subjects.map(sub => ({
+    subject: sub,
+    classMax: Math.max(...periodData.filter(s => s.class === benchmarkClass).map(s => s.currentScores[sub] || 0), 0),
+    gradeMax: Math.max(...periodData.map(s => s.currentScores[sub] || 0), 0)
+  })), [periodData, data.subjects, benchmarkClass]);
+
+  const duelData = useMemo(() => {
+    const classFirst = periodData.filter(s => s.class === benchmarkClass).sort((a,b) => b.currentTotal - a.currentTotal)[0];
+    const schoolFirst = periodData[0];
+    return data.subjects.map(sub => ({ subject: sub, classFirst: classFirst?.currentScores[sub] || 0, schoolFirst: schoolFirst?.currentScores[sub] || 0 }));
+  }, [periodData, data.subjects, benchmarkClass]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Students in File" value={data.students.length.toString()} subtitle="Current Sample" />
+        <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Total Students" value={data.students.length.toString()} subtitle="Cohort Size" />
         <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title="Classes" value={data.classes.length.toString()} subtitle="Active Groups" />
-        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="上线人数" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
-        <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Grade Size (Est)" value={totalCohortSize.toString()} subtitle="Computed Cohort Size" />
+        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="上线人数 (特控及以上)" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
+        <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Best Score" value={data.schoolStats.max.toString()} subtitle="School Record" />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
@@ -182,20 +154,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="w-full">
-        {activeTab === 'school' && (
-          <SchoolView 
-            selectedPeriod={selectedPeriod} 
-            periodData={periodData} 
-            subjects={data.subjects} 
-            thresholds={thresholds} 
-            setThresholds={setManualThresholds} 
-            thresholdType={effectiveThresholdType} 
-            setThresholdType={setThresholdType} 
-            hasImportedStatus={hasImportedStatus} 
-            totalStudents={totalCohortSize}
-            allHistoricalRanks={allHistoricalRanks}
-          />
-        )}
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} totalStudents={data.students.length} />}
         {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} periodData={periodData} />}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
@@ -206,12 +165,19 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             subjects={data.subjects}
             classes={data.classes}
             allSubjectRanks={allSubjectRanks}
-            allHistoricalRanks={allHistoricalRanks}
             thresholds={thresholds}
             thresholdType={effectiveThresholdType}
+            totalStudents={data.students.length}
           />
         )}
-        {activeTab === 'progress' && <ProgressAnalysisView students={data.students} allPeriods={allPeriods} allHistoricalRanks={allHistoricalRanks} classes={data.classes} />}
+        {activeTab === 'progress' && (
+          <ProgressAnalysisView 
+            students={data.students}
+            allPeriods={allPeriods}
+            allHistoricalRanks={allHistoricalRanks}
+            classes={data.classes}
+          />
+        )}
         {activeTab === 'student' && (
           <StudentDetailView 
             studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} 
@@ -224,7 +190,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             allSubjectRanks={allSubjectRanks}
             thresholds={thresholds}
             thresholdType={effectiveThresholdType}
-            totalStudents={totalCohortSize}
+            totalStudents={data.students.length}
             selectedPeriod={selectedPeriod}
             periodData={periodData}
           />
