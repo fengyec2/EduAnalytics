@@ -14,6 +14,8 @@ interface SchoolViewProps {
   thresholdType: 'rank' | 'percent';
   setThresholdType: React.Dispatch<React.SetStateAction<'rank' | 'percent'>>;
   hasImportedStatus?: boolean;
+  totalStudents: number;
+  allHistoricalRanks: Record<string, Record<string, number>>;
 }
 
 const SchoolView: React.FC<SchoolViewProps> = ({ 
@@ -24,7 +26,9 @@ const SchoolView: React.FC<SchoolViewProps> = ({
   setThresholds,
   thresholdType,
   setThresholdType,
-  hasImportedStatus = false
+  hasImportedStatus = false,
+  totalStudents,
+  allHistoricalRanks
 }) => {
   const [showSettings, setShowSettings] = useState(false);
   
@@ -37,13 +41,13 @@ const SchoolView: React.FC<SchoolViewProps> = ({
   ];
 
   const handleThresholdChange = (key: string, val: string) => {
-    const num = parseInt(val) || 0;
+    const num = parseFloat(val) || 0;
     setThresholds(prev => ({ ...prev, [key]: num }));
   };
 
   const admissionDistribution = useMemo(() => 
-    AnalysisEngine.getAdmissionDistribution(periodData, thresholds, thresholdType, admissionLabels),
-    [periodData, thresholds, thresholdType]
+    AnalysisEngine.getAdmissionDistribution(selectedPeriod, periodData, thresholds, thresholdType, admissionLabels, allHistoricalRanks),
+    [selectedPeriod, periodData, thresholds, thresholdType, allHistoricalRanks]
   );
 
   const subjectAvgs = useMemo(() => 
@@ -101,6 +105,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                       <div className="relative">
                         <input 
                           type="number"
+                          step={thresholdType === 'percent' ? "0.01" : "1"}
                           value={thresholds[line.key]}
                           onChange={(e) => handleThresholdChange(line.key, e.target.value)}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -118,46 +123,35 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                 <ShieldCheck className="w-10 h-10 text-blue-600 mb-3" />
                 <h4 className="text-sm font-bold text-blue-900 mb-2">已开启“导入元数据”优先模式</h4>
                 <p className="text-xs text-blue-800 max-w-lg leading-relaxed">
-                  系统检测到当前数据包含原始 Excel 导入的“上线情况”列。为了保证统计严谨性，系统已自动推算出各级别的名次阈值：
+                  系统推算出各级别的“百分比阈值”如下。注意：此百分比在应用到各个学科时，会自动乘以该学科年级真实出现的最高名次作为分母。
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 w-full">
-                  {admissionLabels.map(label => (
-                    <div key={label.key} className="bg-white p-3 rounded-xl border border-blue-200 shadow-sm">
-                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1">{label.key}</p>
-                      <p className="text-lg font-black text-blue-600">Top {thresholds[label.key]}</p>
-                    </div>
-                  ))}
+                  {admissionLabels.map(label => {
+                    const pct = thresholds[label.key] || 0;
+                    const approxRank = Math.round((pct / 100) * totalStudents);
+                    return (
+                      <div key={label.key} className="bg-white p-3 rounded-xl border border-blue-200 shadow-sm">
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-1">{label.key}</p>
+                        <p className="text-lg font-black text-blue-600">{pct.toFixed(2)}%</p>
+                        <p className="text-[10px] text-gray-400 font-medium">基数 {totalStudents} 对应 #{approxRank}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
-            <p className="text-[10px] text-gray-400 italic">注：系统将按名次从小到大自动区间切分。例如 C9 设为 30 则统计 6-30 名的学生。</p>
           </div>
         )}
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartContainer title={`Admissions Status Analysis (${selectedPeriod})`}>
+        <ChartContainer title={`Admissions Distribution (${selectedPeriod})`}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie 
-                data={admissionDistribution} 
-                cx="50%" 
-                cy="50%" 
-                innerRadius={60} 
-                outerRadius={85} 
-                paddingAngle={5} 
-                dataKey="value"
-                animationBegin={0}
-                animationDuration={800}
-              >
-                {admissionDistribution.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                ))}
+              <Pie data={admissionDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value">
+                {admissionDistribution.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
               </Pie>
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                formatter={(value: number) => [`${value} 人`, '数量']}
-              />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`${value} 人`, '数量']} />
               <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} />
             </PieChart>
           </ResponsiveContainer>
@@ -169,10 +163,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
               <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip 
-                cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
-              />
+              <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
               <Bar dataKey="avg" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Average Score" />
             </BarChart>
           </ResponsiveContainer>
