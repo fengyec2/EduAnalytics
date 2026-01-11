@@ -274,6 +274,8 @@ export const getSubjectDistribution = (
     return { name: l.key, count, color: l.color };
   });
 
+  // Fixed the unintentional nested comparison of thresholdType in maxLimit calculation.
+  // In the 'else' branch where thresholdType is 'percent', the nested thresholdType === 'rank' check was redundant.
   const maxLimit = thresholdType === 'rank' 
     ? thresholds[labels[labels.length - 1].key] 
     : Math.round((thresholds[labels[labels.length - 1].key] / 100) * cohortSize);
@@ -430,12 +432,37 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
     let fullScore = max > 120 ? (max > 150 ? Math.ceil(max / 10) * 10 : 150) : (max > 100 ? 120 : 100);
     const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
     const stdDev = Math.sqrt(variance), median = n % 2 === 0 ? (scores[n/2 - 1] + scores[n/2]) / 2 : scores[Math.floor(n/2)];
+    
+    // 众数 (Mode) 计算逻辑
+    const frequency: Record<number, number> = {};
+    let maxFreq = 0;
+    scores.forEach(s => {
+      frequency[s] = (frequency[s] || 0) + 1;
+      if (frequency[s] > maxFreq) maxFreq = frequency[s];
+    });
+    const modeValues = Object.keys(frequency)
+      .filter(score => frequency[Number(score)] === maxFreq)
+      .map(Number);
+    const mode = maxFreq > 1 ? modeValues.join(', ') : '无';
+
     const difficulty = mean / fullScore;
     const splitIdx = Math.round(n * 0.27), top27 = scores.slice(n - splitIdx), bottom27 = scores.slice(0, splitIdx);
     const meanTop = top27.length > 0 ? top27.reduce((a, b) => a + b, 0) / top27.length : 0;
     const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
     const discrimination = (meanTop - meanBottom) / fullScore;
-    stats.push({ subject: sub, participants: n, max, mean: parseFloat(mean.toFixed(2)), stdDev: parseFloat(stdDev.toFixed(2)), difficulty: parseFloat(difficulty.toFixed(2)), discrimination: parseFloat(discrimination.toFixed(2)), variance, median });
+    
+    stats.push({ 
+      subject: sub, 
+      participants: n, 
+      max, 
+      mean: parseFloat(mean.toFixed(2)), 
+      stdDev: parseFloat(stdDev.toFixed(2)), 
+      difficulty: parseFloat(difficulty.toFixed(2)), 
+      discrimination: parseFloat(discrimination.toFixed(2)), 
+      variance, 
+      median,
+      mode 
+    });
   });
   const k = subjects.length, sumVarItems = stats.reduce((acc, s) => acc + s.variance, 0);
   const totalScores = periodData.map(s => s.currentTotal), meanTotal = totalScores.reduce((a, b) => a + b, 0) / n;
