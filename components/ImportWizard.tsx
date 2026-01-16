@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2, UserCheck, ShieldCheck } from 'lucide-react';
+import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2, UserCheck, ShieldCheck, Edit3 } from 'lucide-react';
 import { AnalysisState, ImportMode, DataStructure, RankSource, ColumnMapping, StudentRecord, ScoreSnapshot } from '../types';
 
 interface ImportWizardProps {
@@ -21,6 +21,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
   const [mapping, setMapping] = useState<ColumnMapping>({
     name: '',
     class: '',
+    customClass: '',
     subjects: {},
     subjectRanks: {}
   });
@@ -49,6 +50,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
         const autoMapping: ColumnMapping = {
           name: '',
           class: '',
+          customClass: '',
           subjects: {},
           subjectRanks: {}
         };
@@ -77,7 +79,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
             autoMapping.totalRank = h;
           }
 
-          // 增强对“上线情况”列的自动检测
           if (!autoMapping.status && (lower === '上线' || lower === '上线情况' || lower === '录取状态' || lower === '录取' || lower === 'admission' || lower === 'status' || lower === '等级')) {
             autoMapping.status = h;
           }
@@ -134,7 +135,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           totalScore: parseFloat(total.toFixed(2)),
           averageScore: parseFloat((total / (subs.length || 1)).toFixed(2)),
           schoolRank: rankSource === 'imported' && mapping.totalRank ? parseInt(String(row[mapping.totalRank] || '0')) : undefined,
-          // 只有在 rankSource 为 imported 时才尝试导入 status
           status: rankSource === 'imported' && mapping.status ? String(row[mapping.status] || '').trim() : undefined,
           isComplete: mode === 'complete'
         };
@@ -150,8 +150,10 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
             if (!name || name === 'undefined' || name === mapping.name || name.toLowerCase() === 'name') return;
             
             const snapshot = createSnapshot(row, periodName, allSubjects);
+            const studentClass = mapping.class ? String(row[mapping.class] || '').trim() : (mapping.customClass || 'Unknown Class');
+
             if (!studentMap.has(name)) {
-              studentMap.set(name, { class: String(row[mapping.class] || '').trim(), history: [] });
+              studentMap.set(name, { class: studentClass, history: [] });
             }
             const info = studentMap.get(name)!;
             const existingIdx = info.history.findIndex(h => h.period === periodName);
@@ -166,8 +168,11 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
         content.forEach(row => {
           const name = String(row[mapping.name] || '').trim();
           if (!name || name === 'undefined' || name === mapping.name || name.toLowerCase() === 'name') return;
+          
+          const studentClass = mapping.class ? String(row[mapping.class] || '').trim() : (mapping.customClass || 'Unknown Class');
+          
           if (!studentRows.has(name)) {
-            studentRows.set(name, { class: String(row[mapping.class] || '').trim(), rows: [] });
+            studentRows.set(name, { class: studentClass, rows: [] });
           }
           studentRows.get(name)!.rows.push(row);
         });
@@ -229,7 +234,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
     return headers.filter(h => h !== mapping.name && h !== mapping.class);
   }, [headers, mapping.name, mapping.class]);
 
-  const isMappingValid = mapping.name && mapping.class && Object.keys(mapping.subjects).length > 0;
+  const isMappingValid = mapping.name && (mapping.class || (mapping.customClass && mapping.customClass.trim() !== '')) && Object.keys(mapping.subjects).length > 0;
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -369,12 +374,26 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                       {headers.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Class Group</span>
-                    <select value={mapping.class} onChange={(e) => setMapping({...mapping, class: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">-- Choose Column --</option>
-                      {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Class Group</span>
+                      <select value={mapping.class} onChange={(e) => setMapping({...mapping, class: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Manual Input --</option>
+                        {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                    {!mapping.class && (
+                      <div className="flex items-center gap-2 bg-blue-50/50 p-3 rounded-xl border border-blue-100 animate-in slide-in-from-top-1">
+                        <Edit3 className="w-4 h-4 text-blue-500" />
+                        <input 
+                          type="text" 
+                          value={mapping.customClass || ''} 
+                          onChange={(e) => setMapping({...mapping, customClass: e.target.value})} 
+                          placeholder="Enter Class Name (e.g. 301)" 
+                          className="bg-transparent border-none text-xs font-bold text-blue-900 focus:ring-0 w-full placeholder:text-blue-300"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

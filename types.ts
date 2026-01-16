@@ -48,6 +48,7 @@ export type RankSource = 'recalculate' | 'imported';
 export interface ColumnMapping {
   name: string;
   class: string;
+  customClass?: string; // Added to support manual class name entry
   subjects: Record<string, string>;
   subjectRanks: Record<string, string>;
   totalRank?: string;
