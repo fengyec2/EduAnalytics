@@ -4,6 +4,7 @@ import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, Bar
 import { AnalysisState } from '../types';
 import { StatCard, TabButton } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
+import { useTranslation } from '../context/LanguageContext';
 
 // View Imports
 import SchoolView from './SchoolView';
@@ -17,6 +18,7 @@ import ProgressAnalysisView from './ProgressAnalysisView';
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'subjectAnalysis' | 'parameters' | 'student' | 'progress'>('school');
   
   const allPeriods = useMemo(() => 
@@ -36,14 +38,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [manualThresholds, setManualThresholds] = useState<Record<string, number>>({
     '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
   });
-
-  const admissionLabels = [
-    { key: '清北', color: '#be123c' },
-    { key: 'C9', color: '#1e40af' },
-    { key: '高分数', color: '#0369a1' },
-    { key: '名校', color: '#0d9488' },
-    { key: '特控', color: '#10b981' },
-  ];
 
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
@@ -70,7 +64,14 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     [periodData]
   );
 
-  // 关键逻辑：如果存在导入的状态元数据，则自动推算有效的排名百分比阈值。
+  const admissionLabels = [
+    { key: '清北', color: '#be123c' },
+    { key: 'C9', color: '#1e40af' },
+    { key: '高分数', color: '#0369a1' },
+    { key: '名校', color: '#0d9488' },
+    { key: '特控', color: '#10b981' },
+  ];
+
   const thresholds = useMemo(() => {
     if (hasImportedStatus) {
       return AnalysisEngine.deriveThresholdsFromMetadata(periodData, admissionLabels);
@@ -78,7 +79,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return manualThresholds;
   }, [hasImportedStatus, periodData, manualThresholds]);
 
-  // 改进点：元数据模式下，内部统一使用百分比类型，以便在 SubjectAnalysisView 中适配不同科目的总人数
   const effectiveThresholdType = hasImportedStatus ? 'percent' : thresholdType;
 
   const examParameters = useMemo(() => 
@@ -94,7 +94,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
         return status !== '' && status !== '未上线' && validLabels.some(label => status.includes(label));
       }).length;
     }
-
     const limit = effectiveThresholdType === 'rank' ? (thresholds['特控'] || 0) : Math.round(((thresholds['特控'] || 0) / 100) * periodData.length);
     return periodData.filter(s => s.periodSchoolRank <= limit).length;
   }, [periodData, thresholds, effectiveThresholdType, hasImportedStatus]);
@@ -129,23 +128,23 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title="Total Students" value={data.students.length.toString()} subtitle="Cohort Size" />
-        <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title="Classes" value={data.classes.length.toString()} subtitle="Active Groups" />
-        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title="上线人数 (特控及以上)" value={aboveLineCount.toString()} subtitle={`Based on ${selectedPeriod}`} />
-        <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title="Best Score" value={data.schoolStats.max.toString()} subtitle="School Record" />
+        <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title={t('stat.total_students')} value={data.students.length.toString()} subtitle="Cohort Size" />
+        <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title={t('stat.classes')} value={data.classes.length.toString()} subtitle="Groups" />
+        <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title={t('stat.above_line')} value={aboveLineCount.toString()} subtitle={selectedPeriod} />
+        <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title={t('stat.best_score')} value={data.schoolStats.max.toString()} subtitle="School Record" />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
-          <TabButton active={activeTab === 'school'} onClick={() => setActiveTab('school')} icon={<History className="w-4 h-4"/>} label="School View" />
-          <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label="Class Comparison" />
-          <TabButton active={activeTab === 'kings'} onClick={() => setActiveTab('kings')} icon={<Crown className="w-4 h-4"/>} label="Elite Benchmarks" />
-          <TabButton active={activeTab === 'parameters'} onClick={() => setActiveTab('parameters')} icon={<Calculator className="w-4 h-4"/>} label="Exam Parameters" />
-          <TabButton active={activeTab === 'subjectAnalysis'} onClick={() => setActiveTab('subjectAnalysis')} icon={<BarChart3 className="w-4 h-4"/>} label="Subject Analysis" />
-          <TabButton active={activeTab === 'progress'} onClick={() => setActiveTab('progress')} icon={<TrendingUp className="w-4 h-4"/>} label="Progress Analysis" />
-          <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label="Student Detail" />
+          <TabButton active={activeTab === 'school'} onClick={() => setActiveTab('school')} icon={<History className="w-4 h-4"/>} label={t('tab.school')} />
+          <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label={t('tab.comparison')} />
+          <TabButton active={activeTab === 'kings'} onClick={() => setActiveTab('kings')} icon={<Crown className="w-4 h-4"/>} label={t('tab.kings')} />
+          <TabButton active={activeTab === 'parameters'} onClick={() => setActiveTab('parameters')} icon={<Calculator className="w-4 h-4"/>} label={t('tab.parameters')} />
+          <TabButton active={activeTab === 'subjectAnalysis'} onClick={() => setActiveTab('subjectAnalysis')} icon={<BarChart3 className="w-4 h-4"/>} label={t('tab.subject')} />
+          <TabButton active={activeTab === 'progress'} onClick={() => setActiveTab('progress')} icon={<TrendingUp className="w-4 h-4"/>} label={t('tab.progress')} />
+          <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label={t('tab.student')} />
         </div>
-        <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100 animate-in slide-in-from-right-4">
+        <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100">
           <Calendar className="w-4 h-4 text-blue-600" />
           <select className="bg-transparent border-none text-sm font-black text-blue-900 focus:ring-0 cursor-pointer" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
             {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}

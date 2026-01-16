@@ -4,6 +4,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Ba
 import { Settings2, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { ChartContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
+import { useTranslation } from '../context/LanguageContext';
 
 interface SchoolViewProps {
   selectedPeriod: string;
@@ -28,6 +29,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
   hasImportedStatus = false,
   totalStudents
 }) => {
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   
   const admissionLabels = [
@@ -67,12 +69,12 @@ const SchoolView: React.FC<SchoolViewProps> = ({
         >
           <div className="flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-blue-600" />
-            上线分析参数配置 (Admissions Thresholds)
+            {t('school.config_title')}
           </div>
           <div className="flex items-center gap-4">
             {hasImportedStatus && (
               <span className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                <ShieldCheck className="w-3 h-3" /> 使用导入元数据推算
+                <ShieldCheck className="w-3 h-3" /> {t('school.imported_meta')}
               </span>
             )}
             {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -88,13 +90,13 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                     onClick={() => setThresholdType('rank')}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'rank' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
                   >
-                    按绝对名次 (Rank)
+                    {t('school.rank_mode')}
                   </button>
                   <button 
                     onClick={() => setThresholdType('percent')}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${thresholdType === 'percent' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
                   >
-                    按百分比 (%)
+                    {t('school.percent_mode')}
                   </button>
                 </div>
                 
@@ -124,32 +126,18 @@ const SchoolView: React.FC<SchoolViewProps> = ({
             ) : (
               <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 flex flex-col items-center text-center">
                 <ShieldCheck className="w-10 h-10 text-blue-600 mb-3" />
-                <h4 className="text-sm font-bold text-blue-900 mb-2">已开启“导入元数据”优先模式</h4>
+                <h4 className="text-sm font-bold text-blue-900 mb-2">Metadata Overdrive Active</h4>
                 <p className="text-xs text-blue-800 max-w-lg leading-relaxed">
-                  系统检测到导入数据包含原始“上线情况”。基于年级有效人数 <strong>{effectiveGradePopulation}</strong>，系统已推算出各级别的“百分比阈值”并将动态适配各学科人数：
+                  Based on cohort size <strong>{effectiveGradePopulation}</strong>, thresholds are automatically calculated from imported admission flags.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 w-full">
-                  {admissionLabels.map(label => {
-                    const pct = thresholds[label.key] || 0;
-                    const approxRank = Math.round((pct / 100) * effectiveGradePopulation);
-                    return (
-                      <div key={label.key} className="bg-white p-3 rounded-xl border border-blue-200 shadow-sm">
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-1">{label.key}</p>
-                        <p className="text-lg font-black text-blue-600">{pct.toFixed(2)}%</p>
-                        <p className="text-[10px] text-gray-400 font-medium">切分名次约 {approxRank}</p>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
-            <p className="text-[10px] text-gray-400 italic">注：百分比阈值将应用于各学科对应的“最高名次”以实现名次线的科学适配。</p>
           </div>
         )}
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartContainer title={`Admissions Status Analysis (${selectedPeriod})`}>
+        <ChartContainer title={`${t('school.chart_admissions')} (${selectedPeriod})`}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie 
@@ -160,8 +148,6 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                 outerRadius={85} 
                 paddingAngle={5} 
                 dataKey="value"
-                animationBegin={0}
-                animationDuration={800}
               >
                 {admissionDistribution.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
@@ -169,14 +155,13 @@ const SchoolView: React.FC<SchoolViewProps> = ({
               </Pie>
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                formatter={(value: number) => [`${value} 人`, '数量']}
               />
-              <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} />
+              <Legend verticalAlign="bottom" />
             </PieChart>
           </ResponsiveContainer>
         </ChartContainer>
 
-        <ChartContainer title={`Subject Performance (${selectedPeriod})`}>
+        <ChartContainer title={`${t('school.chart_subjects')} (${selectedPeriod})`}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={subjectAvgs}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -186,7 +171,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                 cursor={{ fill: '#f8fafc' }}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
               />
-              <Bar dataKey="avg" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Average Score" />
+              <Bar dataKey="avg" fill="#3b82f6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
