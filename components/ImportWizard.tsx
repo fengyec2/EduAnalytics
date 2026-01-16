@@ -12,9 +12,9 @@ interface ImportWizardProps {
 const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, currentData }) => {
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState<File[]>([]);
-  const [mode, setMode] = useState<ImportMode>('complete');
-  const [structure, setStructure] = useState<DataStructure>('multi-file-single');
-  const [rankSource, setRankSource] = useState<RankSource>('recalculate');
+  const [mode, setMode] = useState('complete');
+  const [structure, setStructure] = useState('multi-file-single');
+  const [rankSource, setRankSource] = useState('recalculate');
   const [periodNamesInput, setPeriodNamesInput] = useState<string>('');
   
   const [headers, setHeaders] = useState<string[]>([]);
@@ -55,6 +55,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           subjectRanks: {}
         };
 
+        // 1. Identify Identity Columns
         foundHeaders.forEach(h => {
           const lower = h.toLowerCase();
           if (!autoMapping.name && (lower === '姓名' || lower === 'name' || lower.includes('学生姓名') || lower === '学生')) {
@@ -64,23 +65,57 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           }
         });
 
+        // 2. Identify Total Rank & Global Status
         foundHeaders.forEach(h => {
-          if (h === autoMapping.name || h === autoMapping.class) return;
           const lower = h.toLowerCase();
-          const isRankCol = lower.includes('名') || lower.includes('次') || lower.includes('rank') || lower === '排名';
-          const isIdCol = lower.includes('号') || lower.includes('id') || lower === '学籍';
-          const isStatusCol = lower.includes('上线') || lower.includes('状态') || lower === '等级' || lower === '录取';
-          
-          if (!isRankCol && !isIdCol && !isStatusCol) {
-            autoMapping.subjects[h] = h;
-          }
-
           if (!autoMapping.totalRank && (lower === '级名' || lower === '年级排名' || lower === '全校名次' || lower === '总分名次' || lower === 'total rank')) {
             autoMapping.totalRank = h;
           }
-
           if (!autoMapping.status && (lower === '上线' || lower === '上线情况' || lower === '录取状态' || lower === '录取' || lower === 'admission' || lower === 'status' || lower === '等级')) {
             autoMapping.status = h;
+          }
+        });
+
+        // 3. Identify Subjects
+        foundHeaders.forEach(h => {
+          if (h === autoMapping.name || h === autoMapping.class || h === autoMapping.totalRank || h === autoMapping.status) return;
+          const lower = h.toLowerCase();
+          const isRankCol = lower.includes('名') || lower.includes('次') || lower.includes('rank') || lower === '排名' || lower.includes('位次');
+          const isIdCol = lower.includes('号') || lower.includes('id') || lower === '学籍';
+          
+          if (!isRankCol && !isIdCol) {
+            autoMapping.subjects[h] = h;
+          }
+        });
+
+        // 4. SMART MATCH: Subject Ranks (Automatic Column Recognition)
+        const rankKeywords = ['排名', '名次', '名', '次', '位', 'rank'];
+        Object.keys(autoMapping.subjects).forEach(sub => {
+          const subName = sub.trim();
+          const subShort = subName.substring(0, 1);
+          
+          const matchingRankCol = foundHeaders.find(h => {
+            if (h === sub || autoMapping.subjects[h]) return false;
+            if (h === autoMapping.name || h === autoMapping.class || h === autoMapping.totalRank) return false;
+
+            const hl = h.toLowerCase();
+            const sl = subName.toLowerCase();
+            const ssl = subShort.toLowerCase();
+
+            // Pattern 1: [Subject]排名, [Subject]名, e.g., 语文排名, 语文名
+            if (rankKeywords.some(kw => hl === (sl + kw) || hl === (sl + ' ' + kw))) return true;
+            
+            // Pattern 2: Short form [S]名, [S]次, e.g., 语名, 语次
+            if (subName.length > 1 && rankKeywords.some(kw => hl === (ssl + kw))) return true;
+
+            // Pattern 3: Fuzzy contains e.g., "语文年级排名"
+            if (hl.includes(sl) && rankKeywords.some(kw => hl.includes(kw))) return true;
+
+            return false;
+          });
+
+          if (matchingRankCol) {
+            autoMapping.subjectRanks[sub] = matchingRankCol;
           }
         });
 
@@ -282,14 +317,14 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                     <LayoutGrid className="w-3 h-3" /> Data Mode
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    <button onClick={() => setMode('complete')} className={`p-4 rounded-xl border text-left transition-all ${mode === 'complete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
+                    <button onClick={() => setMode('complete' as ImportMode)} className={`p-4 rounded-xl border text-left transition-all ${mode === 'complete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-gray-800 text-sm">Whole School (Cohort)</span>
                         {mode === 'complete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
                       </div>
                       <p className="text-[10px] text-gray-500">Full ranking computation will be based on all available records.</p>
                     </button>
-                    <button onClick={() => setMode('incomplete')} className={`p-4 rounded-xl border text-left transition-all ${mode === 'incomplete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
+                    <button onClick={() => setMode('incomplete' as ImportMode)} className={`p-4 rounded-xl border text-left transition-all ${mode === 'incomplete' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-gray-800 text-sm">Partial Sample / Group</span>
                         {mode === 'incomplete' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
@@ -304,14 +339,14 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                     <ListFilter className="w-3 h-3" /> Table Layout
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    <button onClick={() => setStructure('multi-file-single')} className={`p-4 rounded-xl border text-left transition-all ${structure === 'multi-file-single' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
+                    <button onClick={() => setStructure('multi-file-single' as DataStructure)} className={`p-4 rounded-xl border text-left transition-all ${structure === 'multi-file-single' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-gray-800 text-sm">One Exam Per File</span>
                         {structure === 'multi-file-single' && <CheckCircle2 className="w-4 h-4 text-orange-600" />}
                       </div>
                       <p className="text-[10px] text-gray-500">Traditional format. Select multiple files to build a timeline.</p>
                     </button>
-                    <button onClick={() => setStructure('single-file-multi')} className={`p-4 rounded-xl border text-left transition-all ${structure === 'single-file-multi' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
+                    <button onClick={() => setStructure('single-file-multi' as DataStructure)} className={`p-4 rounded-xl border text-left transition-all ${structure === 'single-file-multi' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-gray-800 text-sm">Multi-Exam Summary Table</span>
                         {structure === 'single-file-multi' && <CheckCircle2 className="w-4 h-4 text-orange-600" />}
@@ -328,7 +363,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                     <Settings2 className="w-3 h-3" /> Ranking Authority
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    <button onClick={() => setRankSource('recalculate')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'recalculate' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
+                    <button onClick={() => setRankSource('recalculate' as RankSource)} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'recalculate' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <Settings2 className="w-4 h-4 text-indigo-600" />
@@ -338,7 +373,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
                       </div>
                       <p className="text-[10px] text-gray-500">The system will derive rankings and admission status automatically from scores.</p>
                     </button>
-                    <button onClick={() => setRankSource('imported')} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'imported' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
+                    <button onClick={() => setRankSource('imported' as RankSource)} className={`p-4 rounded-xl border text-left transition-all ${rankSource === 'imported' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <ShieldCheck className="w-4 h-4 text-indigo-600" />
