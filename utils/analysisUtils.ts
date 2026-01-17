@@ -1,4 +1,3 @@
-
 import { StudentRecord, ScoreSnapshot } from '../types';
 
 /**
@@ -408,7 +407,34 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
     const meanTop = top27.length > 0 ? top27.reduce((a, b) => a + b, 0) / top27.length : 0;
     const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
     const discrimination = (meanTop - meanBottom) / fullScore;
-    stats.push({ subject: sub, participants: n, max, mean: parseFloat(mean.toFixed(2)), stdDev: parseFloat(stdDev.toFixed(2)), difficulty: parseFloat(difficulty.toFixed(2)), discrimination: parseFloat(discrimination.toFixed(2)), variance, median });
+    
+    // Calculate Mode
+    const counts: Record<number, number> = {};
+    let maxFreq = 0;
+    for (const score of scores) {
+        counts[score] = (counts[score] || 0) + 1;
+        if (counts[score] > maxFreq) maxFreq = counts[score];
+    }
+    const modes = Object.keys(counts)
+        .map(Number)
+        .filter(score => counts[score] === maxFreq)
+        .sort((a, b) => a - b);
+    // If all scores appear only once, or no distinct mode, we can show N/A or just the list if it's small.
+    // For large datasets, typically "No Mode" if maxFreq is 1.
+    const mode = (maxFreq === 1 && n > 1) ? '-' : modes.slice(0, 3).join(', ') + (modes.length > 3 ? '...' : '');
+
+    stats.push({ 
+        subject: sub, 
+        participants: n, 
+        max, 
+        mean: parseFloat(mean.toFixed(2)), 
+        stdDev: parseFloat(stdDev.toFixed(2)), 
+        difficulty: parseFloat(difficulty.toFixed(2)), 
+        discrimination: parseFloat(discrimination.toFixed(2)), 
+        variance, 
+        median, 
+        mode 
+    });
   });
   const k = subjects.length, sumVarItems = stats.reduce((acc, s) => acc + s.variance, 0);
   const totalScores = periodData.map(s => s.currentTotal), meanTotal = totalScores.reduce((a, b) => a + b, 0) / n;
