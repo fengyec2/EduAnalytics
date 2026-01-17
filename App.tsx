@@ -142,7 +142,7 @@ const AppContent: React.FC = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-3 px-4 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-xs text-gray-400">
           <div className="flex items-center gap-2">
-            <p>© 2024 EduAnalytics.</p>
+            <p>© 2026 EduAnalytics.</p>
             {persistenceActive && (
               <span className="flex items-center gap-1 text-emerald-500 font-bold">
                 <RefreshCw className="w-3 h-3" /> Auto-saved
