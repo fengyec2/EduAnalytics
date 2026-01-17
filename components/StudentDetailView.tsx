@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
 import { StudentRecord } from '../types';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, GlassCard, TableContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface StudentDetailViewProps {
@@ -93,7 +93,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/50 shadow-sm space-y-4">
+      <GlassCard className="space-y-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -128,7 +128,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </GlassCard>
 
       {selectedStudent ? (
         <>
@@ -240,55 +240,51 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </ChartContainer>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-white/50 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> Historical Grade Ledger</h3>
-                <p className="text-[10px] text-slate-400 mt-1 italic">Note: 学科背景色严格基于导入元数据推算的百分比阈值与该次考试实际参考人数动态匹配。</p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="bg-white/30 text-slate-400 font-bold border-b border-slate-100">
-                    <th className="px-8 py-5">Period</th>
+          <TableContainer
+            title="Historical Grade Ledger"
+            icon={<TableIcon className="w-4 h-4" />}
+            subtitle={<p className="text-[10px] text-slate-400 mt-1 italic">Note: 学科背景色严格基于导入元数据推算的百分比阈值与该次考试实际参考人数动态匹配。</p>}
+          >
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-white/30 text-slate-400 font-bold border-b border-slate-100">
+                  <th className="px-8 py-5">Period</th>
+                  {subjects.flatMap(s => [
+                    <th key={s} className="px-8 py-5 text-center">{s}</th>,
+                    <th key={`${s}-rank`} className="px-4 py-5 text-center text-slate-400 font-medium">{s.substring(0, 1)}名</th>
+                  ])}
+                  <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
+                  <th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th>
+                  <th className="px-8 py-5 text-center text-blue-600">上线</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50/50">
+                {selectedStudent.history.map((h, i) => (
+                  <tr key={i} className="hover:bg-white/60 transition-colors">
+                    <td className="px-8 py-5 font-bold text-slate-700">{h.period}</td>
                     {subjects.flatMap(s => [
-                      <th key={s} className="px-8 py-5 text-center">{s}</th>,
-                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-slate-400 font-medium">{s.substring(0, 1)}名</th>
-                    ])}
-                    <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
-                    <th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th>
-                    <th className="px-8 py-5 text-center text-blue-600">上线</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50/50">
-                  {selectedStudent.history.map((h, i) => (
-                    <tr key={i} className="hover:bg-white/60 transition-colors">
-                      <td className="px-8 py-5 font-bold text-slate-700">{h.period}</td>
-                      {subjects.flatMap(s => [
-                        <td key={s} className={`px-8 py-5 text-center transition-all ${getSubjectCellStyle(h.period, s, selectedStudent.name)}`}>
-                          {h.scores[s] || '-'}
-                        </td>,
-                        <td key={`${s}-rank`} className="px-4 py-5 text-center text-slate-500 font-medium">
-                          {allSubjectRanks[h.period]?.[s]?.[selectedStudent.name] || '-'}
-                        </td>
-                      ])}
-                      <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
-                      <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
-                      <td className="px-8 py-5 text-center font-bold text-slate-600">
-                        {getStatusLabel(h.period, selectedStudent.name)}
+                      <td key={s} className={`px-8 py-5 text-center transition-all ${getSubjectCellStyle(h.period, s, selectedStudent.name)}`}>
+                        {h.scores[s] || '-'}
+                      </td>,
+                      <td key={`${s}-rank`} className="px-4 py-5 text-center text-slate-500 font-medium">
+                        {allSubjectRanks[h.period]?.[s]?.[selectedStudent.name] || '-'}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    ])}
+                    <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
+                    <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
+                    <td className="px-8 py-5 text-center font-bold text-slate-600">
+                      {getStatusLabel(h.period, selectedStudent.name)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableContainer>
         </>
       ) : (
-        <div className="bg-white/60 backdrop-blur-xl py-20 rounded-3xl border border-white/50 shadow-sm text-center">
+        <GlassCard className="py-20 text-center">
           <h3 className="text-xl font-bold text-slate-800">Please select a student above</h3>
-        </div>
+        </GlassCard>
       )}
     </div>
   );

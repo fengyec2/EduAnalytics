@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Settings2, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, GlassCard } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -62,7 +62,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <section className="bg-white/60 backdrop-blur-xl rounded-2xl border border-white/50 shadow-sm overflow-hidden transition-all">
+      <GlassCard className="!p-0 overflow-hidden transition-all">
         <button 
           onClick={() => setShowSettings(!showSettings)}
           className="w-full px-6 py-4 flex items-center justify-between text-sm font-bold text-slate-600 hover:bg-white/40 transition-colors"
@@ -134,7 +134,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
             )}
           </div>
         )}
-      </section>
+      </GlassCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartContainer title={`${t('school.chart_admissions')} (${selectedPeriod})`}>

@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Trophy, BarChart2, Star, TrendingUp, Zap, Users } from 'lucide-react';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, GlassCard, TableContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface ClassComparisonViewProps {
@@ -42,7 +42,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/50 shadow-sm flex flex-col md:flex-row justify-between gap-4">
+      <GlassCard className="flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-slate-900">Class Comparison Analysis</h2>
           <p className="text-xs text-slate-500 mt-1">Comparing academic performance across selected groups.</p>
@@ -58,7 +58,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </GlassCard>
 
       {leaderboard && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -91,89 +91,86 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
       )}
 
-      <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-white/50 shadow-lg overflow-hidden">
-        <div className="px-8 py-6 bg-slate-900/90 text-white flex items-center justify-between backdrop-blur-md">
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-blue-400" /> Subject Competition Matrix
-            </h3>
-            <p className="text-[10px] opacity-60 mt-1">Highlighted cells indicate the leading class in that subject.</p>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50">
-                <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 min-w-[180px]">Subject / Metric</th>
-                {selectedClasses.map((cls, idx) => (
-                  <th key={cls} className="px-8 py-6 text-center border-r border-slate-100 min-w-[160px]">
-                    <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg mb-2 text-white font-black shadow-md" style={{ backgroundColor: colors[idx % colors.length] }}>
-                      {idx + 1}
-                    </div>
-                    <div className="text-lg font-black text-slate-900">{cls}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/50">
-              <tr className="bg-blue-50/20">
-                <td className="px-8 py-5 font-black text-blue-600 flex items-center gap-2">
-                  <Trophy className="w-4 h-4" /> TOTAL AVG
-                </td>
-                {classSummaries.map((s, idx) => {
-                  const isMax = s.average === leaderboard?.highestAvg.average;
+      <TableContainer
+        title="Subject Competition Matrix"
+        icon={<BarChart2 className="w-4 h-4 text-blue-400" />}
+        subtitle={<p className="text-[10px] opacity-60 mt-1">Highlighted cells indicate the leading class in that subject.</p>}
+        headerClassName="bg-slate-900/90 text-white backdrop-blur-md"
+        titleClassName="text-white"
+        className="shadow-lg"
+      >
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50/50">
+              <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 min-w-[180px]">Subject / Metric</th>
+              {selectedClasses.map((cls, idx) => (
+                <th key={cls} className="px-8 py-6 text-center border-r border-slate-100 min-w-[160px]">
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg mb-2 text-white font-black shadow-md" style={{ backgroundColor: colors[idx % colors.length] }}>
+                    {idx + 1}
+                  </div>
+                  <div className="text-lg font-black text-slate-900">{cls}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100/50">
+            <tr className="bg-blue-50/20">
+              <td className="px-8 py-5 font-black text-blue-600 flex items-center gap-2">
+                <Trophy className="w-4 h-4" /> TOTAL AVG
+              </td>
+              {classSummaries.map((s, idx) => {
+                const isMax = s.average === leaderboard?.highestAvg.average;
+                return (
+                  <td key={idx} className={`px-8 py-5 text-center transition-all ${isMax ? 'bg-amber-50/50 font-black text-amber-700' : 'text-slate-600 font-bold'}`}>
+                    {s.average}
+                    {isMax && <Star className="w-3 h-3 inline ml-1 fill-current" />}
+                  </td>
+                );
+              })}
+            </tr>
+            
+            <tr className="bg-slate-50/30">
+              <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject Specific Averages</td>
+            </tr>
+
+            {classComparisonData.map((row, rowIdx) => (
+              <tr key={rowIdx} className="hover:bg-white/40 transition-colors">
+                <td className="px-8 py-4 text-slate-700 font-bold">{row.name}</td>
+                {selectedClasses.map((cls, colIdx) => {
+                  const val = row[cls] || 0;
+                  const isMax = val === rowMaxMap[row.name] && val > 0;
                   return (
-                    <td key={idx} className={`px-8 py-5 text-center transition-all ${isMax ? 'bg-amber-50/50 font-black text-amber-700' : 'text-slate-600 font-bold'}`}>
-                      {s.average}
-                      {isMax && <Star className="w-3 h-3 inline ml-1 fill-current" />}
+                    <td key={colIdx} className={`px-8 py-4 text-center transition-all ${isMax ? 'bg-emerald-50/50 text-emerald-700 font-black' : 'text-slate-600'}`}>
+                      {val || '-'}
                     </td>
                   );
                 })}
               </tr>
-              
-              <tr className="bg-slate-50/30">
-                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject Specific Averages</td>
+            ))}
+
+            <tr className="bg-slate-50/30">
+              <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranking Distribution (Top Tier)</td>
+            </tr>
+
+            {rankingDistributionData.map((row, rowIdx) => (
+              <tr key={rowIdx} className="hover:bg-white/40 transition-colors">
+                <td className="px-8 py-4 text-slate-600 font-medium">{row.name} Count</td>
+                {selectedClasses.map((cls, colIdx) => {
+                  const val = row[cls] || 0;
+                  const isMax = val === distRowMaxMap[row.name] && val > 0;
+                  return (
+                    <td key={colIdx} className={`px-8 py-4 text-center ${isMax ? 'bg-indigo-50/50 text-indigo-700 font-black' : 'text-slate-500'}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isMax ? 'bg-indigo-100/80 shadow-sm' : 'bg-slate-100/50'}`}>
+                        {val}
+                      </span>
+                    </td>
+                  );
+                })}
               </tr>
-
-              {classComparisonData.map((row, rowIdx) => (
-                <tr key={rowIdx} className="hover:bg-white/40 transition-colors">
-                  <td className="px-8 py-4 text-slate-700 font-bold">{row.name}</td>
-                  {selectedClasses.map((cls, colIdx) => {
-                    const val = row[cls] || 0;
-                    const isMax = val === rowMaxMap[row.name] && val > 0;
-                    return (
-                      <td key={colIdx} className={`px-8 py-4 text-center transition-all ${isMax ? 'bg-emerald-50/50 text-emerald-700 font-black' : 'text-slate-600'}`}>
-                        {val || '-'}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-
-              <tr className="bg-slate-50/30">
-                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranking Distribution (Top Tier)</td>
-              </tr>
-
-              {rankingDistributionData.map((row, rowIdx) => (
-                <tr key={rowIdx} className="hover:bg-white/40 transition-colors">
-                  <td className="px-8 py-4 text-slate-600 font-medium">{row.name} Count</td>
-                  {selectedClasses.map((cls, colIdx) => {
-                    const val = row[cls] || 0;
-                    const isMax = val === distRowMaxMap[row.name] && val > 0;
-                    return (
-                      <td key={colIdx} className={`px-8 py-4 text-center ${isMax ? 'bg-indigo-50/50 text-indigo-700 font-black' : 'text-slate-500'}`}>
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isMax ? 'bg-indigo-100/80 shadow-sm' : 'bg-slate-100/50'}`}>
-                          {val}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            ))}
+          </tbody>
+        </table>
+      </TableContainer>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartContainer title="Subject Performance Gap">

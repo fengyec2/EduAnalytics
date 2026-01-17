@@ -33,3 +33,35 @@ export const ChartContainer: React.FC<{ title: string; children: React.ReactNode
     </div>
   </div>
 );
+
+export const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
+  <div className={`bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/50 shadow-sm ${className}`}>
+    {children}
+  </div>
+);
+
+export const TableContainer: React.FC<{ 
+  title: React.ReactNode; 
+  icon?: React.ReactNode;
+  children: React.ReactNode; 
+  subtitle?: React.ReactNode;
+  headerContent?: React.ReactNode;
+  className?: string;
+  headerClassName?: string;
+  titleClassName?: string;
+}> = ({ title, icon, subtitle, children, headerContent, className = "", headerClassName = "bg-slate-50/50", titleClassName = "text-slate-500" }) => (
+  <div className={`bg-white/60 backdrop-blur-xl rounded-3xl border border-white/50 shadow-sm overflow-hidden ${className}`}>
+    <div className={`px-8 py-6 border-b border-slate-100 flex items-center justify-between ${headerClassName}`}>
+      <div>
+        <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${titleClassName}`}>
+          {icon} {title}
+        </h3>
+        {subtitle && <div className="mt-1">{subtitle}</div>}
+      </div>
+      {headerContent}
+    </div>
+    <div className="overflow-x-auto">
+      {children}
+    </div>
+  </div>
+);

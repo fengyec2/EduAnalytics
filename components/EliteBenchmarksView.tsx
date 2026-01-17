@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, GlassCard } from './SharedComponents';
 
 interface EliteBenchmarksViewProps {
   selectedPeriod: string;
@@ -17,7 +17,7 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
 }) => {
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/50 shadow-sm gap-4">
+      <GlassCard className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h3 className="text-sm font-bold text-gray-800">Class Benchmarking ({selectedPeriod})</h3>
           <p className="text-xs text-gray-500">Compare class leaders against grade-wide masters.</p>
@@ -29,7 +29,7 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
         >
           {classes.map(c => <option key={c} value={c}>Class {c}</option>)}
         </select>
-      </div>
+      </GlassCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartContainer title={`👑 Class ${benchmarkClass} King vs Grade King`}>

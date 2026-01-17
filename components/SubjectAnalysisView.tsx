@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Filter, Search, UserX, Info } from 'lucide-react';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, GlassCard } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface SubjectAnalysisViewProps {
@@ -49,7 +49,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/50 shadow-sm flex flex-col md:flex-row gap-6">
+      <GlassCard className="flex flex-col md:flex-row gap-6">
         <div className="space-y-3 flex-1">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
             <Search className="w-3 h-3" /> Select Subject
@@ -83,7 +83,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
             ))}
           </div>
         </div>
-      </div>
+      </GlassCard>
 
       <ChartContainer title={`${selectedSubject} Distribution in Selected Classes (${selectedPeriod})`}>
         <ResponsiveContainer width="100%" height="100%">
