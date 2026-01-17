@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Filter, Search, UserX, Info } from 'lucide-react';
-import { ChartContainer, GlassCard } from './SharedComponents';
+import { ChartContainer } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface SubjectAnalysisViewProps {
@@ -49,7 +49,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <GlassCard className="flex flex-col md:flex-row gap-6">
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
         <div className="space-y-3 flex-1">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
             <Search className="w-3 h-3" /> Select Subject
@@ -59,7 +59,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
               <button 
                 key={sub}
                 onClick={() => setSelectedSubject(sub)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedSubject === sub ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white/50 text-gray-500 border-gray-200 hover:border-indigo-300 hover:bg-white'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedSubject === sub ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-indigo-300'}`}
               >
                 {sub}
               </button>
@@ -76,24 +76,24 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
               <button 
                 key={cls}
                 onClick={() => toggleClass(cls)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedClasses.includes(cls) ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white/50 text-gray-500 border-gray-200 hover:border-blue-300 hover:bg-white'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedClasses.includes(cls) ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'}`}
               >
                 {cls}
               </button>
             ))}
           </div>
         </div>
-      </GlassCard>
+      </div>
 
       <ChartContainer title={`${selectedSubject} Distribution in Selected Classes (${selectedPeriod})`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
             <YAxis stroke="#94a3b8" fontSize={12} />
             <Tooltip 
-              cursor={{ fill: 'rgba(248,250,252,0.5)' }}
-              contentStyle={{ borderRadius: '12px', border: 'none', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+              cursor={{ fill: '#f8fafc' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
               formatter={(value: number) => [`${value} 人`, '人数']}
             />
             <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={50}>
@@ -106,7 +106,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         </ResponsiveContainer>
       </ChartContainer>
 
-      <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-rose-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white rounded-3xl border border-rose-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="px-8 py-6 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
           <div>
             <h3 className="text-xs font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2">
@@ -123,7 +123,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
               {belowLineStudents.map((s, idx) => (
                 <div 
                   key={idx}
-                  className="bg-white/50 border border-rose-100 rounded-xl p-3 flex flex-col gap-1 hover:shadow-md transition-all hover:scale-[1.02] backdrop-blur-sm"
+                  className="bg-white border border-rose-100 rounded-xl p-3 flex flex-col gap-1 hover:shadow-md transition-all hover:scale-[1.02]"
                 >
                   <span className="text-sm font-bold text-gray-800">{s.name}</span>
                   <div className="flex items-center justify-between text-[10px]">
@@ -142,7 +142,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-blue-50/40 backdrop-blur-sm p-6 rounded-2xl border border-blue-100">
+      <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
         <h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest mb-3">Analysis Insight</h4>
         <p className="text-sm text-blue-800 leading-relaxed">
           当前图表展示了所选班级在 <strong>{selectedSubject}</strong> 科目的上线情况分布。

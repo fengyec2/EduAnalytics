@@ -135,7 +135,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        <div className="flex flex-wrap gap-1 bg-white/60 backdrop-blur-xl p-1.5 rounded-2xl shadow-sm border border-white/50 w-fit">
+        <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
           <TabButton active={activeTab === 'school'} onClick={() => setActiveTab('school')} icon={<History className="w-4 h-4"/>} label={t('tab.school')} />
           <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label={t('tab.comparison')} />
           <TabButton active={activeTab === 'kings'} onClick={() => setActiveTab('kings')} icon={<Crown className="w-4 h-4"/>} label={t('tab.kings')} />
@@ -144,9 +144,9 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
           <TabButton active={activeTab === 'progress'} onClick={() => setActiveTab('progress')} icon={<TrendingUp className="w-4 h-4"/>} label={t('tab.progress')} />
           <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label={t('tab.student')} />
         </div>
-        <div className="flex items-center gap-3 bg-white/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/50 shadow-sm hover:bg-white/60 transition-colors">
+        <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100">
           <Calendar className="w-4 h-4 text-blue-600" />
-          <select className="bg-transparent border-none text-sm font-black text-slate-700 focus:ring-0 cursor-pointer" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
+          <select className="bg-transparent border-none text-sm font-black text-blue-900 focus:ring-0 cursor-pointer" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
             {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>

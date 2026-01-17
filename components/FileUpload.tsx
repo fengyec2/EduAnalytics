@@ -138,15 +138,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
 
   return (
     <div 
-      className={`relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-2xl bg-white/60 backdrop-blur-xl shadow-sm transition-all duration-300 ${
-        dragActive ? 'border-blue-600 bg-blue-50/60 scale-[1.01]' : 'border-blue-200 hover:border-blue-400'
+      className={`relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-2xl bg-white shadow-sm transition-all duration-300 ${
+        dragActive ? 'border-blue-600 bg-blue-50 scale-[1.01]' : 'border-blue-200 hover:border-blue-400'
       }`}
       onDragEnter={onDrag}
       onDragLeave={onDrag}
       onDragOver={onDrag}
       onDrop={onDrop}
     >
-      <div className="bg-blue-50/50 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform backdrop-blur-sm">
+      <div className="bg-blue-50 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
         <Files className="w-12 h-12 text-blue-600" />
       </div>
       <h3 className="text-xl font-bold text-gray-800 mb-2">Import Multiple Exams</h3>

@@ -3,7 +3,6 @@ import React, { useState, useMemo } from 'react';
 import { Filter, ArrowUpDown, TrendingUp, TrendingDown, Search, Calculator, Calendar } from 'lucide-react';
 import { StudentRecord } from '../types';
 import * as AnalysisEngine from '../utils/analysisUtils';
-import { GlassCard, TableContainer } from './SharedComponents';
 
 interface ProgressAnalysisViewProps {
   students: StudentRecord[];
@@ -61,7 +60,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-      <GlassCard className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -71,7 +70,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-bold ml-1">第一次考试 (x)</p>
                 <select 
-                  className="w-full bg-white/50 border border-white/50 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   value={periodX}
                   onChange={(e) => setPeriodX(e.target.value)}
                 >
@@ -81,7 +80,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-bold ml-1">第二次考试 (y)</p>
                 <select 
-                  className="w-full bg-white/50 border border-white/50 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   value={periodY}
                   onChange={(e) => setPeriodY(e.target.value)}
                 >
@@ -99,7 +98,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
                 <button 
                   key={cls}
                   onClick={() => toggleClass(cls)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selectedClasses.includes(cls) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white/50 text-gray-500 border-gray-200 hover:border-blue-300 hover:bg-white'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selectedClasses.includes(cls) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'}`}
                 >
                   {cls}
                 </button>
@@ -108,7 +107,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
           </div>
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-4 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-64">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
@@ -116,83 +115,81 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
               placeholder="Search name..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white/50 border border-white/50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 bg-blue-50/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-blue-100">
+          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
             <Calculator className="w-3 h-3 text-blue-600" />
             Coefficient (z) = 2 * (x - y) / (x + y)
           </div>
         </div>
-      </GlassCard>
+      </div>
 
-      <TableContainer
-        title="Progress Analysis Table"
-        headerClassName="bg-slate-900/90 text-white backdrop-blur-md"
-        titleClassName="text-white"
-      >
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900/90 text-white backdrop-blur-md">
-            <tr>
-              <th className="px-6 py-5 cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('name')}>
-                <div className="flex items-center gap-2">姓名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-              <th className="px-6 py-5 text-center cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('rankX')}>
-                <div className="flex items-center justify-center gap-2">{periodX || '第一次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-              <th className="px-6 py-5 text-center cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('rankY')}>
-                <div className="flex items-center justify-center gap-2">{periodY || '第二次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-              <th className="px-6 py-5 text-center cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('rankChange')}>
-                <div className="flex items-center justify-center gap-2">进退步名次 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-              <th className="px-6 py-5 text-center cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('coefficient')}>
-                <div className="flex items-center justify-center gap-2">进退步系数 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-              <th className="px-6 py-5 text-center cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => toggleSort('streakCount')}>
-                <div className="flex items-center justify-center gap-2">连续进退步 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100/50">
-            {sortedData.map((row, idx) => (
-              <tr key={idx} className="hover:bg-white/60 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-gray-900">{row.name}</div>
-                  <div className="text-[10px] text-gray-400 font-bold uppercase">{row.class}</div>
-                </td>
-                <td className="px-6 py-4 text-center text-gray-600 font-medium">#{row.rankX}</td>
-                <td className="px-6 py-4 text-center text-gray-600 font-medium">#{row.rankY}</td>
-                <td className={`px-6 py-4 text-center font-black ${row.rankChange > 0 ? 'text-emerald-600' : row.rankChange < 0 ? 'text-rose-600' : 'text-gray-400'}`}>
-                  <div className="flex items-center justify-center gap-1">
-                    {row.rankChange > 0 ? <TrendingUp className="w-3 h-3" /> : row.rankChange < 0 ? <TrendingDown className="w-3 h-3" /> : null}
-                    {row.rankChange > 0 ? `+${row.rankChange}` : row.rankChange === 0 ? '-' : row.rankChange}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${row.coefficient > 0 ? 'bg-emerald-100/50 text-emerald-700' : row.coefficient < 0 ? 'bg-rose-100/50 text-rose-700' : 'bg-slate-100/50 text-gray-500'}`}>
-                    {row.coefficient > 0 ? `+${row.coefficient.toFixed(2)}` : row.coefficient.toFixed(2)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-center font-bold">
-                  {row.streakCount !== 0 ? (
-                    <span className={`text-xs ${row.streakCount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {row.streakCount > 0 ? `进 ${row.streakCount}` : `退 ${Math.abs(row.streakCount)}`}
-                    </span>
-                  ) : '-'}
-                </td>
-              </tr>
-            ))}
-            {sortedData.length === 0 && (
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-900 text-white">
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-gray-400 italic">
-                  No data available for the selected period or search criteria.
-                </td>
+                <th className="px-6 py-5 cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('name')}>
+                  <div className="flex items-center gap-2">姓名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
+                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankX')}>
+                  <div className="flex items-center justify-center gap-2">{periodX || '第一次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
+                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankY')}>
+                  <div className="flex items-center justify-center gap-2">{periodY || '第二次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
+                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankChange')}>
+                  <div className="flex items-center justify-center gap-2">进退步名次 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
+                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('coefficient')}>
+                  <div className="flex items-center justify-center gap-2">进退步系数 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
+                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('streakCount')}>
+                  <div className="flex items-center justify-center gap-2">连续进退步 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </TableContainer>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sortedData.map((row, idx) => (
+                <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-gray-900">{row.name}</div>
+                    <div className="text-[10px] text-gray-400 font-bold uppercase">{row.class}</div>
+                  </td>
+                  <td className="px-6 py-4 text-center text-gray-600 font-medium">#{row.rankX}</td>
+                  <td className="px-6 py-4 text-center text-gray-600 font-medium">#{row.rankY}</td>
+                  <td className={`px-6 py-4 text-center font-black ${row.rankChange > 0 ? 'text-emerald-600' : row.rankChange < 0 ? 'text-rose-600' : 'text-gray-400'}`}>
+                    <div className="flex items-center justify-center gap-1">
+                      {row.rankChange > 0 ? <TrendingUp className="w-3 h-3" /> : row.rankChange < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                      {row.rankChange > 0 ? `+${row.rankChange}` : row.rankChange === 0 ? '-' : row.rankChange}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${row.coefficient > 0 ? 'bg-emerald-100 text-emerald-700' : row.coefficient < 0 ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {row.coefficient > 0 ? `+${row.coefficient.toFixed(2)}` : row.coefficient.toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center font-bold">
+                    {row.streakCount !== 0 ? (
+                      <span className={`text-xs ${row.streakCount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {row.streakCount > 0 ? `进 ${row.streakCount}` : `退 ${Math.abs(row.streakCount)}`}
+                      </span>
+                    ) : '-'}
+                  </td>
+                </tr>
+              ))}
+              {sortedData.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-20 text-center text-gray-400 italic">
+                    No data available for the selected period or search criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
