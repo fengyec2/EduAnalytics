@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Filter, ArrowUpDown, TrendingUp, TrendingDown, Search, Calculator, Calendar } from 'lucide-react';
 import { StudentRecord } from '../types';
+import { SelectInput, SearchInput, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface ProgressAnalysisViewProps {
@@ -69,23 +70,21 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-bold ml-1">第一次考试 (x)</p>
-                <select 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                <SelectInput 
                   value={periodX}
                   onChange={(e) => setPeriodX(e.target.value)}
                 >
                   {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                </SelectInput>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-bold ml-1">第二次考试 (y)</p>
-                <select 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                <SelectInput 
                   value={periodY}
                   onChange={(e) => setPeriodY(e.target.value)}
                 >
                   {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                </SelectInput>
               </div>
             </div>
           </div>
@@ -95,29 +94,25 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
             </h4>
             <div className="flex flex-wrap gap-2">
               {classes.map(cls => (
-                <button 
+                <FilterChip 
                   key={cls}
+                  label={cls}
+                  active={selectedClasses.includes(cls)}
                   onClick={() => toggleClass(cls)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selectedClasses.includes(cls) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'}`}
-                >
-                  {cls}
-                </button>
+                  color="blue"
+                />
               ))}
             </div>
           </div>
         </div>
 
         <div className="pt-4 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search name..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <SearchInput 
+             className="w-full md:w-64"
+             placeholder="Search name..."
+             value={searchTerm}
+             onChange={setSearchTerm}
+          />
           <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
             <Calculator className="w-3 h-3 text-blue-600" />
             Coefficient (z) = 2 * (x - y) / (x + y)

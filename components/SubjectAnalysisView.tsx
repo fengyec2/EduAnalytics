@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Filter, Search, UserX, Info } from 'lucide-react';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface SubjectAnalysisViewProps {
@@ -56,13 +56,13 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
           </p>
           <div className="flex flex-wrap gap-2">
             {subjects.map(sub => (
-              <button 
+              <FilterChip 
                 key={sub}
+                label={sub}
+                active={selectedSubject === sub}
                 onClick={() => setSelectedSubject(sub)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedSubject === sub ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-indigo-300'}`}
-              >
-                {sub}
-              </button>
+                color="indigo"
+              />
             ))}
           </div>
         </div>
@@ -73,13 +73,13 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
           </p>
           <div className="flex flex-wrap gap-2">
             {classes.map(cls => (
-              <button 
+              <FilterChip 
                 key={cls}
+                label={cls}
+                active={selectedClasses.includes(cls)}
                 onClick={() => toggleClass(cls)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedClasses.includes(cls) ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'}`}
-              >
-                {cls}
-              </button>
+                color="blue"
+              />
             ))}
           </div>
         </div>

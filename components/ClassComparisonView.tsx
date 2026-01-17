@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Trophy, BarChart2, Star, TrendingUp, Zap, Users } from 'lucide-react';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface ClassComparisonViewProps {
@@ -49,13 +49,13 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
         <div className="flex flex-wrap gap-2">
           {classes.map(cls => (
-            <button 
+            <FilterChip 
               key={cls}
+              label={cls}
+              active={selectedClasses.includes(cls)}
               onClick={() => setSelectedClasses(prev => prev.includes(cls) ? prev.filter(p => p !== cls) : [...prev, cls])}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${selectedClasses.includes(cls) ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-105' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'}`}
-            >
-              {cls}
-            </button>
+              color="blue"
+            />
           ))}
         </div>
       </div>

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, SelectInput } from './SharedComponents';
 
 interface EliteBenchmarksViewProps {
   selectedPeriod: string;
@@ -22,13 +22,13 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
           <h3 className="text-sm font-bold text-gray-800">Class Benchmarking ({selectedPeriod})</h3>
           <p className="text-xs text-gray-500">Compare class leaders against grade-wide masters.</p>
         </div>
-        <select 
-          className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto"
+        <SelectInput 
+          className="w-full md:w-auto"
           value={benchmarkClass}
           onChange={(e) => setBenchmarkClass(e.target.value)}
         >
           {classes.map(c => <option key={c} value={c}>Class {c}</option>)}
-        </select>
+        </SelectInput>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

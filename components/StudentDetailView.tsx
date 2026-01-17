@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Search, Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
+import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
 import { StudentRecord } from '../types';
-import { ChartContainer } from './SharedComponents';
+import { ChartContainer, SearchInput, SelectInput } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface StudentDetailViewProps {
@@ -97,24 +98,20 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" placeholder="Search for a student name..." value={studentSearchTerm} 
-              onChange={(e) => setStudentSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select 
-              className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
-            >
-              <option value="all">All Classes</option>
-              {classes.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          <SearchInput 
+             className="flex-1"
+             placeholder="Search for a student name..."
+             value={studentSearchTerm}
+             onChange={setStudentSearchTerm}
+          />
+          <SelectInput 
+            icon={Filter}
+            value={classFilter} 
+            onChange={(e) => setClassFilter(e.target.value)}
+          >
+            <option value="all">All Classes</option>
+            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+          </SelectInput>
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-[200px] overflow-y-auto p-1 custom-scrollbar">
@@ -221,13 +218,13 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
 
             <ChartContainer title={`📈 ${selectedSubjectForTrend} Historical Rank Trend`}>
               <div className="absolute top-6 right-8">
-                <select 
-                  className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1 text-[10px] font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                <SelectInput 
+                  className="py-1 text-[10px]"
                   value={selectedSubjectForTrend}
                   onChange={(e) => setSelectedSubjectForTrend(e.target.value)}
                 >
                   {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                </SelectInput>
               </div>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={subjectTrendData}>
