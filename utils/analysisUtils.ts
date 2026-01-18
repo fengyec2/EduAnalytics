@@ -1,4 +1,14 @@
+
 import { StudentRecord, ScoreSnapshot } from '../types';
+
+/**
+ * 班级名称自然排序（确保 1班, 2班, 10班 的逻辑顺序）
+ */
+export const sortClasses = (classes: string[]) => {
+  return [...classes].sort((a, b) => 
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  );
+};
 
 /**
  * 计算全周期总分名次映射
@@ -122,7 +132,6 @@ export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subje
 
 /**
  * 根据导入的 Metadata 自动推算名次百分比阈值
- * 改进点：使用最大名次作为分母，以解决 Partial Dataset 模式下的百分比偏离问题
  */
 export const deriveThresholdsFromMetadata = (
   periodData: any[], 
@@ -131,11 +140,9 @@ export const deriveThresholdsFromMetadata = (
   const derived: Record<string, number> = {};
   if (periodData.length === 0) return derived;
 
-  // 获取导入数据中的最大年级名次，作为该次考试的有效总人数估算
   const maxGradeRank = Math.max(...periodData.map(s => s.periodSchoolRank || 0), periodData.length);
   
   labels.forEach(label => {
-    // 找出该状态下的学生中，名次最大的那一个（即该线的名次值）
     const studentsInStatus = periodData.filter(s => {
       const status = (s.currentStatus || '').trim();
       return status === label.key || status.includes(label.key);
@@ -143,7 +150,6 @@ export const deriveThresholdsFromMetadata = (
 
     if (studentsInStatus.length > 0) {
       const maxRankInStatus = Math.max(...studentsInStatus.map(s => s.periodSchoolRank || 0));
-      // 计算该线在整个年级中的百分比
       derived[label.key] = parseFloat(((maxRankInStatus / maxGradeRank) * 100).toFixed(4));
     } else {
       derived[label.key] = 0;
@@ -230,7 +236,7 @@ export const getAdmissionDistribution = (
 };
 
 /**
- * 单科上线分布核心逻辑：基于该科实际名次（Max Rank）动态计算排名线
+ * 单科上线分布核心逻辑
  */
 export const getSubjectDistribution = (
   selectedPeriod: string,
@@ -245,8 +251,6 @@ export const getSubjectDistribution = (
   const filteredData = periodData.filter(s => selectedClasses.includes(s.class));
   const subjectRanks = allSubjectRanks[selectedPeriod]?.[subject] || {};
   
-  // 关键改进：获取该科目在当次考试中的最大名次，作为该学科的“有效参考人数”
-  // 这在 Partial Dataset 模式下比 row count 更能反映真实分布
   const maxSubRank = Math.max(...Object.values(subjectRanks), 0);
   const effectiveSubjectPopulation = maxSubRank || totalStudents;
 
@@ -259,7 +263,6 @@ export const getSubjectDistribution = (
   ];
 
   const results = labels.map((l, idx) => {
-    // 基于该学科的人数动态换算名次线
     const limit = thresholdType === 'rank' 
       ? thresholds[l.key] 
       : Math.round((thresholds[l.key] / 100) * effectiveSubjectPopulation);
@@ -439,7 +442,6 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
     const meanBottom = bottom27.length > 0 ? bottom27.reduce((a, b) => a + b, 0) / bottom27.length : 0;
     const discrimination = (meanTop - meanBottom) / fullScore;
     
-    // Calculate Mode
     const counts: Record<number, number> = {};
     let maxFreq = 0;
     for (const score of scores) {
@@ -450,8 +452,6 @@ export const calculateExamParameters = (periodData: any[], subjects: string[]) =
         .map(Number)
         .filter(score => counts[score] === maxFreq)
         .sort((a, b) => a - b);
-    // If all scores appear only once, or no distinct mode, we can show N/A or just the list if it's small.
-    // For large datasets, typically "No Mode" if maxFreq is 1.
     const mode = (maxFreq === 1 && n > 1) ? '-' : modes.slice(0, 3).join(', ') + (modes.length > 3 ? '...' : '');
 
     stats.push({ 

@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Database, Plus, Trash2, GripVertical, AlertTriangle, CheckCircle2, FileSpreadsheet, Layers, Users, TrendingUp, Award, Info, X, BarChart, ChevronRight } from 'lucide-react';
 import { AnalysisState, ExamEntity } from '../types';
 import ImportWizard from './ImportWizard';
 import { useTranslation } from '../context/LanguageContext';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface DataManagerProps {
   initialData: AnalysisState | null;
@@ -15,10 +17,8 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [selectedExamName, setSelectedExamName] = useState<string | null>(null);
   
-  // Local state for exams list
   const [exams, setExams] = useState<ExamEntity[]>([]);
 
-  // Sync local exams with initialData if it changes externally
   useEffect(() => {
     if (!initialData || initialData.students.length === 0) {
       setExams([]);
@@ -104,13 +104,13 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
     if (newStudents.length === 0) {
       onDataUpdated(null);
     } else {
-      const newClasses = [...new Set(newStudents.map(s => s.class))];
+      const rawClasses = [...new Set(newStudents.map(s => s.class))];
       const newSubjects = [...new Set(newStudents.flatMap(s => Object.keys(s.history[0]?.scores || {})))];
       
       onDataUpdated({
         ...initialData,
         students: newStudents,
-        classes: newClasses,
+        classes: AnalysisEngine.sortClasses(rawClasses),
         subjects: newSubjects
       });
     }
@@ -146,7 +146,7 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
       highest: max,
       topStudentName: topStudent?.name || 'N/A',
       subjects: subjects,
-      classes: [...new Set(periodStudents.map(s => s.class))]
+      classes: AnalysisEngine.sortClasses([...new Set(periodStudents.map(s => s.class))])
     };
   }, [selectedExamName, initialData]);
 

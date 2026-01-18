@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Upload, X, ArrowRight, ArrowLeft, Table, CheckCircle2, AlertCircle, FileText, LayoutGrid, ListFilter, Settings2, UserCheck, ShieldCheck, Edit3 } from 'lucide-react';
 import { AnalysisState, ImportMode, DataStructure, RankSource, ColumnMapping, StudentRecord, ScoreSnapshot } from '../types';
 import { useTranslation } from '../context/LanguageContext';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface ImportWizardProps {
   onComplete: (data: AnalysisState) => void;
@@ -57,7 +58,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           subjectRanks: {}
         };
 
-        // 1. Identify Identity Columns
         foundHeaders.forEach(h => {
           const lower = h.toLowerCase();
           if (!autoMapping.name && (lower === '姓名' || lower === 'name' || lower.includes('学生姓名') || lower === '学生')) {
@@ -67,7 +67,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           }
         });
 
-        // 2. Identify Total Rank & Global Status
         foundHeaders.forEach(h => {
           const lower = h.toLowerCase();
           if (!autoMapping.totalRank && (lower === '级名' || lower === '年级排名' || lower === '全校名次' || lower === '总分名次' || lower === 'total rank')) {
@@ -78,7 +77,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           }
         });
 
-        // 3. Identify Subjects
         foundHeaders.forEach(h => {
           if (h === autoMapping.name || h === autoMapping.class || h === autoMapping.totalRank || h === autoMapping.status) return;
           const lower = h.toLowerCase();
@@ -90,7 +88,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           }
         });
 
-        // 4. SMART MATCH: Subject Ranks (Automatic Column Recognition)
         const rankKeywords = ['排名', '名次', '名', '次', '位', 'rank'];
         Object.keys(autoMapping.subjects).forEach(sub => {
           const subName = sub.trim();
@@ -241,10 +238,12 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
 
       if (students.length === 0) throw new Error(t('wizard.error_no_records'));
 
+      const rawClasses = Array.from(new Set(students.map(s => s.class)));
+
       onComplete({
         students,
         subjects: allSubjects,
-        classes: [...new Set(students.map(s => s.class))],
+        classes: AnalysisEngine.sortClasses(rawClasses),
         schoolStats: {
           average: students.reduce((acc, s) => acc + s.totalScore, 0) / students.length,
           max: Math.max(...students.map(s => s.totalScore)),

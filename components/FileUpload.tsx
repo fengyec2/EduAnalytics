@@ -2,6 +2,7 @@
 import React, { useCallback, useState } from 'react';
 import { Upload, AlertCircle, Files, CheckCircle2 } from 'lucide-react';
 import { StudentRecord, AnalysisState, ScoreSnapshot } from '../types';
+import * as AnalysisEngine from '../utils/analysisUtils';
 
 interface FileUploadProps {
   onDataLoaded: (data: AnalysisState) => void;
@@ -31,10 +32,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
           reader.onload = (evt) => {
             try {
               const bstr = evt.target?.result;
-              // Fixed: Added explicit casting to any to access global XLSX and resolve compilation errors.
               const wb = (window as any).XLSX.read(bstr, { type: 'binary' });
               const ws = wb.Sheets[wb.SheetNames[0]];
-              // Fixed: Added explicit casting to any to access global XLSX and resolve compilation errors.
               const data = (window as any).XLSX.utils.sheet_to_json(ws);
 
               if (data.length === 0) {
@@ -101,11 +100,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, setLoading }) => 
 
       if (students.length === 0) throw new Error("No student data found");
 
-      // 仅负责生成基础结构，复杂统计留给 Dashboard 实时计算
+      const rawClasses = Array.from(new Set(students.map(s => s.class)));
+
       onDataLoaded({
         students,
         subjects,
-        classes: [...new Set(students.map(s => s.class))],
+        classes: AnalysisEngine.sortClasses(rawClasses),
         schoolStats: {
           average: students.reduce((acc, s) => acc + s.totalScore, 0) / students.length,
           max: Math.max(...students.map(s => s.totalScore)),
