@@ -4,6 +4,7 @@ import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Fl
 import { StudentRecord } from '../types';
 import { ChartContainer, SearchInput, SelectInput } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
+import { useTranslation } from '../context/LanguageContext';
 
 interface StudentDetailViewProps {
   studentSearchTerm: string;
@@ -30,6 +31,7 @@ interface StudentDetailViewProps {
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
   studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allClassHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents, selectedPeriod, periodData
 }) => {
+  const { t } = useTranslation();
   const [radarBaseline, setRadarBaseline] = useState<'class' | 'grade'>('class');
   const [selectedSubjectForTrend, setSelectedSubjectForTrend] = useState<string>(subjects[0] || '');
 
@@ -70,14 +72,10 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
   }, [allHistoricalRanks, thresholds, thresholdType, totalStudents, selectedStudent]);
 
   const getSubjectCellStyle = useCallback((period: string, subject: string, studentName: string) => {
-    // Explicitly define subRanksForPeriod type as Record<string, number> to prevent unknown inference
     const subRanksForPeriod: Record<string, number> = allSubjectRanks[period]?.[subject] || {};
     const rank = subRanksForPeriod[studentName];
     if (!rank) return 'text-gray-400';
 
-    // 关键修正：对于 Historical Ledger，我们需要基于该科目在该时期的最大名次计算有效人数
-    // 这样才能在 Partial Dataset 模式下正确应用基于元数据推算的百分比阈值
-    // Added explicit type casting for Object.values result to resolve "unknown" spread in Math.max
     const maxSubRankInPeriod = Math.max(...(Object.values(subRanksForPeriod) as number[]), 0);
     const subjectParticipants = maxSubRankInPeriod || totalStudents;
     
@@ -100,7 +98,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
         <div className="flex flex-col md:flex-row gap-4">
           <SearchInput 
              className="flex-1"
-             placeholder="Search for a student name..."
+             placeholder={t('student.search_placeholder')}
              value={studentSearchTerm}
              onChange={setStudentSearchTerm}
           />
@@ -109,7 +107,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             value={classFilter} 
             onChange={(e) => setClassFilter(e.target.value)}
           >
-            <option value="all">All Classes</option>
+            <option value="all">{t('student.all_classes')}</option>
             {classes.map(c => <option key={c} value={c}>{c}</option>)}
           </SelectInput>
         </div>
@@ -139,26 +137,34 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                     <GraduationCap className="w-8 h-8 text-white" />
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] opacity-70 uppercase font-black tracking-widest">Latest Rank</p>
+                    <p className="text-[10px] opacity-70 uppercase font-black tracking-widest">{t('student.latest_rank')}</p>
                     <p className="text-4xl font-black">#{allHistoricalRanks[selectedStudent.history[selectedStudent.history.length-1].period]?.[selectedStudent.name] || 'N/A'}</p>
                   </div>
                 </div>
                 <h4 className="text-2xl font-black mb-1">{selectedStudent.name}</h4>
-                <p className="text-sm opacity-80 mb-6">{selectedStudent.class} • Academic Performer</p>
+                <p className="text-sm opacity-80 mb-6">{selectedStudent.class} • {t('student.academic_performer')}</p>
                 <div className="space-y-4 pt-6 border-t border-white/10">
-                   <div className="flex justify-between items-center"><span className="text-xs opacity-60 uppercase">Average Total Score</span><span className="text-xl font-bold">{historyMeanTotal.toFixed(1)}</span></div>
-                   <div className="flex justify-between items-center"><span className="text-xs opacity-60 uppercase">Improvement (Total)</span><span className="text-xl font-bold flex items-center gap-1">{selectedStudent.history.length > 1 ? (((selectedStudent.history[selectedStudent.history.length-1].totalScore - selectedStudent.history[0].totalScore) / selectedStudent.history[0].totalScore * 100).toFixed(1) + '%') : 'N/A'}<TrendingUp className="w-4 h-4" /></span></div>
+                   <div className="flex justify-between items-center"><span className="text-xs opacity-60 uppercase">{t('student.avg_total')}</span><span className="text-xl font-bold">{historyMeanTotal.toFixed(1)}</span></div>
+                   <div className="flex justify-between items-center"><span className="text-xs opacity-60 uppercase">{t('student.improvement_total')}</span><span className="text-xl font-bold flex items-center gap-1">{selectedStudent.history.length > 1 ? (((selectedStudent.history[selectedStudent.history.length-1].totalScore - selectedStudent.history[0].totalScore) / selectedStudent.history[0].totalScore * 100).toFixed(1) + '%') : 'N/A'}<TrendingUp className="w-4 h-4" /></span></div>
                 </div>
               </div>
 
               {streakInfo && streakInfo.count > 0 && (
-                <div className={`p-6 rounded-2xl border shadow-sm transition-all animate-in slide-in-from-left-4 ${streakInfo.type === 'improvement' ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+                <div className={`p-6 rounded-2xl border shadow-sm transition-all animate-in slide-in-from-left-4 ${streakInfo.type === 'improvement' ? 'bg-emerald-50 border-emerald-100' : streakInfo.type === 'decline' ? 'bg-rose-50 border-rose-100' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-2 rounded-xl ${streakInfo.type === 'improvement' ? 'bg-emerald-500' : 'bg-rose-500'}`}><Flame className="w-5 h-5 text-white" /></div>
-                    <div><p className={`text-[10px] font-black uppercase tracking-widest ${streakInfo.type === 'improvement' ? 'text-emerald-600' : 'text-rose-600'}`}>Trend Analysis</p><h4 className={`text-lg font-black ${streakInfo.type === 'improvement' ? 'text-emerald-900' : 'text-rose-900'}`}>连续{streakInfo.type === 'improvement' ? '进步' : '退步'} {streakInfo.count} 次</h4></div>
+                    <div className={`p-2 rounded-xl ${streakInfo.type === 'improvement' ? 'bg-emerald-500' : streakInfo.type === 'decline' ? 'bg-rose-500' : 'bg-gray-500'}`}><Flame className="w-5 h-5 text-white" /></div>
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${streakInfo.type === 'improvement' ? 'text-emerald-600' : streakInfo.type === 'decline' ? 'text-rose-600' : 'text-gray-600'}`}>{t('student.trend_analysis')}</p>
+                      <h4 className={`text-lg font-black ${streakInfo.type === 'improvement' ? 'text-emerald-900' : streakInfo.type === 'decline' ? 'text-rose-900' : 'text-gray-900'}`}>
+                        {t('student.streak_msg')
+                          .replace('{type}', streakInfo.type === 'improvement' ? t('student.streak_improvement') : streakInfo.type === 'decline' ? t('student.streak_decline') : t('student.streak_stable'))
+                          .replace('{count}', String(streakInfo.count))
+                        }
+                      </h4>
+                    </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-end"><span className="text-xs text-gray-500">总位次变动</span><span className={`text-2xl font-black ${streakInfo.type === 'improvement' ? 'text-emerald-600' : 'text-rose-600'}`}>{streakInfo.totalChange > 0 ? `+${streakInfo.totalChange}` : streakInfo.totalChange}</span></div>
+                    <div className="flex justify-between items-end"><span className="text-xs text-gray-500">{t('student.total_rank_change')}</span><span className={`text-2xl font-black ${streakInfo.type === 'improvement' ? 'text-emerald-600' : streakInfo.type === 'decline' ? 'text-rose-600' : 'text-gray-600'}`}>{streakInfo.totalChange > 0 ? `+${streakInfo.totalChange}` : streakInfo.totalChange}</span></div>
                     <div className="flex flex-wrap gap-2">{streakInfo.steps.map((step, idx) => (<div key={idx} className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 ${streakInfo.type === 'improvement' ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'}`}>{streakInfo.type === 'improvement' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{step > 0 ? `+${step}` : step}</div>))}</div>
                   </div>
                 </div>
@@ -166,21 +172,21 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             </div>
 
             <div className="lg:col-span-2 space-y-8">
-              <ChartContainer title="📉 School Ranking Trend (Upwards is Better)">
+              <ChartContainer title={t('student.rank_trend_title')}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#94a3b8" fontSize={12} /><YAxis reversed domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, 'School Rank']} />
-                    <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="schoolRank" name="School Rank" stroke="#8b5cf6" strokeWidth={4} dot={{r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, t('common.rank')]} />
+                    <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="schoolRank" name={t('common.rank')} stroke="#8b5cf6" strokeWidth={4} dot={{r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
-              <ChartContainer title="📈 Performance vs Grade Average Curve">
+              <ChartContainer title={t('student.score_vs_grade')}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#94a3b8" fontSize={12} /><YAxis domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [value.toFixed(1), '']} />
-                    <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="totalScore" name="My Total Score" stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} /><Line type="monotone" dataKey="gradeAvgTotal" name="Grade Avg Total (Ref)" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="totalScore" name={t('student.ledger_total')} stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} /><Line type="monotone" dataKey="gradeAvgTotal" name={t('student.radar_grade')} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -188,19 +194,19 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ChartContainer title={`📊 Subject Competency Radar (${selectedPeriod})`}>
+            <ChartContainer title={t('student.radar_title') + ` (${selectedPeriod})`}>
               <div className="absolute top-6 right-8 flex gap-2">
                 <button 
                   onClick={() => setRadarBaseline('class')}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${radarBaseline === 'class' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
                 >
-                  班级平均
+                  {t('student.radar_class')}
                 </button>
                 <button 
                   onClick={() => setRadarBaseline('grade')}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${radarBaseline === 'grade' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
                 >
-                  年级平均
+                  {t('student.radar_grade')}
                 </button>
               </div>
               <ResponsiveContainer width="100%" height="100%">
@@ -208,15 +214,15 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                   <PolarGrid stroke="#e2e8f0" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} />
                   <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
-                  <Radar name="My Score" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={2} />
-                  <Radar name={radarBaseline === 'class' ? 'Class Avg' : 'Grade Avg'} dataKey="baseline" stroke="#94a3b8" fill="#cbd5e1" fillOpacity={0.3} strokeWidth={1} strokeDasharray="4 4" />
+                  <Radar name={t('common.score')} dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={2} />
+                  <Radar name={radarBaseline === 'class' ? t('student.radar_class') : t('student.radar_grade')} dataKey="baseline" stroke="#94a3b8" fill="#cbd5e1" fillOpacity={0.3} strokeWidth={1} strokeDasharray="4 4" />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                   <Legend verticalAlign="bottom" height={36} />
                 </RadarChart>
               </ResponsiveContainer>
             </ChartContainer>
 
-            <ChartContainer title={`📈 ${selectedSubjectForTrend} Historical Rank Trend`}>
+            <ChartContainer title={t('student.subject_trend_title').replace('{subject}', selectedSubjectForTrend)}>
               <div className="absolute top-6 right-8">
                 <SelectInput 
                   className="py-1 text-[10px]"
@@ -231,9 +237,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
                   <YAxis reversed domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, 'Subject Rank']} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, t('common.rank')]} />
                   <Legend verticalAlign="bottom" height={36} />
-                  <Line type="stepAfter" dataKey="rank" name={`${selectedSubjectForTrend} Rank`} stroke="#10b981" strokeWidth={3} dot={{r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 7 }} />
+                  <Line type="stepAfter" dataKey="rank" name={selectedSubjectForTrend + ' ' + t('common.rank')} stroke="#10b981" strokeWidth={3} dot={{r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 7 }} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -242,23 +248,23 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> Historical Grade Ledger</h3>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Note: 学科背景色严格基于导入元数据推算的百分比阈值与该次考试实际参考人数动态匹配。</p>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> {t('student.ledger_title')}</h3>
+                <p className="text-[10px] text-gray-400 mt-1 italic">{t('student.ledger_note')}</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-white text-gray-400 font-bold border-b border-gray-100">
-                    <th className="px-8 py-5 whitespace-nowrap">Period</th>
+                    <th className="px-8 py-5 whitespace-nowrap">{t('student.ledger_period')}</th>
                     {subjects.flatMap(s => [
                       <th key={s} className="px-8 py-5 text-center">{s}</th>,
-                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}名</th>
+                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}{t('common.rank')}</th>
                     ])}
-                    <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
-                    <th className="px-8 py-5 text-blue-600 text-center">班名 (班级排名)</th>
-                    <th className="px-8 py-5 text-purple-600 text-center">级名 (年级排名)</th>
-                    <th className="px-8 py-5 text-center text-gray-600">上线</th>
+                    <th className="px-8 py-5 text-indigo-600 text-right">{t('student.ledger_total')}</th>
+                    <th className="px-8 py-5 text-blue-600 text-center">{t('student.ledger_class_rank')}</th>
+                    <th className="px-8 py-5 text-purple-600 text-center">{t('student.ledger_grade_rank')}</th>
+                    <th className="px-8 py-5 text-center text-gray-600">{t('student.ledger_status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -299,7 +305,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
         </>
       ) : (
         <div className="bg-white py-20 rounded-3xl border border-gray-100 shadow-sm text-center">
-          <h3 className="text-xl font-bold text-gray-800">Please select a student above</h3>
+          <h3 className="text-xl font-bold text-gray-800">{t('student.select_hint')}</h3>
         </div>
       )}
     </div>

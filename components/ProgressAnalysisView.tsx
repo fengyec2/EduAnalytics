@@ -1,9 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
 import { Filter, ArrowUpDown, TrendingUp, TrendingDown, Search, Calculator, Calendar } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { SelectInput, SearchInput, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
+import { useTranslation } from '../context/LanguageContext';
 
 interface ProgressAnalysisViewProps {
   students: StudentRecord[];
@@ -15,6 +15,7 @@ interface ProgressAnalysisViewProps {
 const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
   students, allPeriods, allHistoricalRanks, classes
 }) => {
+  const { t } = useTranslation();
   const [periodX, setPeriodX] = useState<string>(allPeriods[allPeriods.length - 2] || allPeriods[0] || '');
   const [periodY, setPeriodY] = useState<string>(allPeriods[allPeriods.length - 1] || '');
   const [selectedClasses, setSelectedClasses] = useState<string[]>(classes);
@@ -65,11 +66,11 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-3 h-3" /> Select Comparison Periods
+              <Calendar className="w-3 h-3" /> {t('progress.period_select')}
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <p className="text-[10px] text-gray-400 font-bold ml-1">第一次考试 (x)</p>
+                <p className="text-[10px] text-gray-400 font-bold ml-1">{t('progress.period_x')}</p>
                 <SelectInput 
                   value={periodX}
                   onChange={(e) => setPeriodX(e.target.value)}
@@ -78,7 +79,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
                 </SelectInput>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] text-gray-400 font-bold ml-1">第二次考试 (y)</p>
+                <p className="text-[10px] text-gray-400 font-bold ml-1">{t('progress.period_y')}</p>
                 <SelectInput 
                   value={periodY}
                   onChange={(e) => setPeriodY(e.target.value)}
@@ -90,7 +91,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
           </div>
           <div className="flex-1 space-y-3">
              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <Filter className="w-3 h-3" /> Filter by Class
+              <Filter className="w-3 h-3" /> {t('progress.class_filter')}
             </h4>
             <div className="flex flex-wrap gap-2">
               {classes.map(cls => (
@@ -109,13 +110,13 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
         <div className="pt-4 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
           <SearchInput 
              className="w-full md:w-64"
-             placeholder="Search name..."
+             placeholder={t('common.search')}
              value={searchTerm}
              onChange={setSearchTerm}
           />
           <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
             <Calculator className="w-3 h-3 text-blue-600" />
-            Coefficient (z) = 2 * (x - y) / (x + y)
+            {t('progress.coefficient_formula')}
           </div>
         </div>
       </div>
@@ -126,22 +127,22 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
             <thead className="bg-gray-900 text-white">
               <tr>
                 <th className="px-6 py-5 cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('name')}>
-                  <div className="flex items-center gap-2">姓名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center gap-2">{t('progress.table_name')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
                 <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankX')}>
-                  <div className="flex items-center justify-center gap-2">{periodX || '第一次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center justify-center gap-2">{t('progress.table_rank_x').replace('{period}', periodX || '')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
                 <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankY')}>
-                  <div className="flex items-center justify-center gap-2">{periodY || '第二次'}级名 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center justify-center gap-2">{t('progress.table_rank_x').replace('{period}', periodY || '')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
                 <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankChange')}>
-                  <div className="flex items-center justify-center gap-2">进退步名次 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center justify-center gap-2">{t('progress.table_rank_change')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
                 <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('coefficient')}>
-                  <div className="flex items-center justify-center gap-2">进退步系数 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center justify-center gap-2">{t('progress.table_coefficient')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
                 <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('streakCount')}>
-                  <div className="flex items-center justify-center gap-2">连续进退步 <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  <div className="flex items-center justify-center gap-2">{t('progress.table_streak')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
               </tr>
             </thead>
@@ -168,7 +169,9 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
                   <td className="px-6 py-4 text-center font-bold">
                     {row.streakCount !== 0 ? (
                       <span className={`text-xs ${row.streakCount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {row.streakCount > 0 ? `进 ${row.streakCount}` : `退 ${Math.abs(row.streakCount)}`}
+                        {row.streakCount > 0 
+                          ? t('progress.table_streak_up').replace('{count}', String(row.streakCount))
+                          : t('progress.table_streak_down').replace('{count}', String(Math.abs(row.streakCount)))}
                       </span>
                     ) : '-'}
                   </td>
@@ -177,7 +180,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
               {sortedData.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-20 text-center text-gray-400 italic">
-                    No data available for the selected period or search criteria.
+                    {t('progress.no_data')}
                   </td>
                 </tr>
               )}
