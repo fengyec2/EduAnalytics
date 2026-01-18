@@ -1,9 +1,9 @@
-
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Trophy, BarChart2, Star, TrendingUp, Zap, Users } from 'lucide-react';
 import { ChartContainer, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
+import { useTranslation } from '../context/LanguageContext';
 
 interface ClassComparisonViewProps {
   selectedPeriod: string;
@@ -19,6 +19,7 @@ interface ClassComparisonViewProps {
 const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({ 
   selectedPeriod, classes, selectedClasses, setSelectedClasses, classComparisonData, rankingDistributionData, colors, periodData 
 }) => {
+  const { t } = useTranslation();
   
   const classSummaries = useMemo(() => 
     AnalysisEngine.getClassSummaries(periodData, selectedClasses),
@@ -44,8 +45,8 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-gray-900">Class Comparison Analysis</h2>
-          <p className="text-xs text-gray-500 mt-1">Comparing academic performance across selected groups.</p>
+          <h2 className="text-xl font-black text-gray-900">{t('comparison.title')}</h2>
+          <p className="text-xs text-gray-500 mt-1">{t('comparison.desc')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {classes.map(cls => (
@@ -65,28 +66,28 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           <div className="bg-gradient-to-br from-amber-50 to-orange-100 p-6 rounded-3xl border border-amber-200 shadow-sm relative overflow-hidden group">
             <Star className="w-20 h-20 text-amber-200/50 absolute -right-4 -bottom-4 rotate-12 group-hover:scale-110 transition-transform" />
             <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Trophy className="w-3 h-3" /> Highest Average Score
+              <Trophy className="w-3 h-3" /> {t('comparison.stat_highest_avg')}
             </h4>
             <p className="text-3xl font-black text-amber-900">{leaderboard.highestAvg.className}</p>
-            <p className="text-sm font-bold text-amber-700 mt-1">{leaderboard.highestAvg.average} Points Average</p>
+            <p className="text-sm font-bold text-amber-700 mt-1">{leaderboard.highestAvg.average} {t('comparison.stat_points_avg')}</p>
           </div>
           
           <div className="bg-gradient-to-br from-indigo-50 to-blue-100 p-6 rounded-3xl border border-indigo-200 shadow-sm relative overflow-hidden group">
             <Zap className="w-20 h-20 text-indigo-200/50 absolute -right-4 -bottom-4 rotate-12 group-hover:scale-110 transition-transform" />
             <h4 className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Star className="w-3 h-3" /> Most Top 10 Elite
+              <Star className="w-3 h-3" /> {t('comparison.stat_most_top10')}
             </h4>
             <p className="text-3xl font-black text-indigo-900">{leaderboard.mostTop10.className}</p>
-            <p className="text-sm font-bold text-indigo-700 mt-1">{leaderboard.mostTop10.top10} Students in Top 10</p>
+            <p className="text-sm font-bold text-indigo-700 mt-1">{leaderboard.mostTop10.top10} {t('comparison.stat_students_top10')}</p>
           </div>
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-100 p-6 rounded-3xl border border-emerald-200 shadow-sm relative overflow-hidden group">
             <TrendingUp className="w-20 h-20 text-emerald-200/50 absolute -right-4 -bottom-4 rotate-12 group-hover:scale-110 transition-transform" />
             <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Users className="w-3 h-3" /> Strongest Bench (Top 50)
+              <Users className="w-3 h-3" /> {t('comparison.stat_strongest_bench')}
             </h4>
             <p className="text-3xl font-black text-emerald-900">{leaderboard.mostTop50.className}</p>
-            <p className="text-sm font-bold text-emerald-700 mt-1">{leaderboard.mostTop50.top50} Students in Top 50</p>
+            <p className="text-sm font-bold text-emerald-700 mt-1">{leaderboard.mostTop50.top50} {t('comparison.stat_students_top50')}</p>
           </div>
         </div>
       )}
@@ -95,16 +96,16 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         <div className="px-8 py-6 bg-gray-900 text-white flex items-center justify-between">
           <div>
             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-blue-400" /> Subject Competition Matrix
+              <BarChart2 className="w-4 h-4 text-blue-400" /> {t('comparison.matrix_title')}
             </h3>
-            <p className="text-[10px] opacity-60 mt-1">Highlighted cells indicate the leading class in that subject.</p>
+            <p className="text-[10px] opacity-60 mt-1">{t('comparison.matrix_desc')}</p>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
-                <th className="px-8 py-6 text-xs font-black text-gray-400 uppercase tracking-widest border-r border-gray-100 min-w-[180px]">Subject / Metric</th>
+                <th className="px-8 py-6 text-xs font-black text-gray-400 uppercase tracking-widest border-r border-gray-100 min-w-[180px]">{t('comparison.matrix_header')}</th>
                 {selectedClasses.map((cls, idx) => (
                   <th key={cls} className="px-8 py-6 text-center border-r border-gray-100 min-w-[160px]">
                     <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg mb-2 text-white font-black" style={{ backgroundColor: colors[idx % colors.length] }}>
@@ -118,7 +119,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
             <tbody className="divide-y divide-gray-100">
               <tr className="bg-blue-50/10">
                 <td className="px-8 py-5 font-black text-blue-600 flex items-center gap-2">
-                  <Trophy className="w-4 h-4" /> TOTAL AVG
+                  <Trophy className="w-4 h-4" /> {t('comparison.matrix_total_avg')}
                 </td>
                 {classSummaries.map((s, idx) => {
                   const isMax = s.average === leaderboard?.highestAvg.average;
@@ -132,7 +133,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
               </tr>
               
               <tr className="bg-gray-50/30">
-                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject Specific Averages</td>
+                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('comparison.matrix_subject_avg')}</td>
               </tr>
 
               {classComparisonData.map((row, rowIdx) => (
@@ -151,12 +152,12 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
               ))}
 
               <tr className="bg-gray-50/30">
-                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Ranking Distribution (Top Tier)</td>
+                <td colSpan={selectedClasses.length + 1} className="px-8 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('comparison.matrix_rank_dist')}</td>
               </tr>
 
               {rankingDistributionData.map((row, rowIdx) => (
                 <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-8 py-4 text-gray-600 font-medium">{row.name} Count</td>
+                  <td className="px-8 py-4 text-gray-600 font-medium">{row.name} {t('comparison.count')}</td>
                   {selectedClasses.map((cls, colIdx) => {
                     const val = row[cls] || 0;
                     const isMax = val === distRowMaxMap[row.name] && val > 0;
@@ -176,7 +177,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartContainer title="Subject Performance Gap">
+        <ChartContainer title={t('comparison.chart_gap')}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={classComparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -200,7 +201,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <ChartContainer title="Elite Density Heatmap">
+        <ChartContainer title={t('comparison.chart_density')}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={rankingDistributionData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
