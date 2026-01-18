@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3, TrendingUp } from 'lucide-react';
 import { AnalysisState } from '../types';
@@ -41,6 +40,11 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
 
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
+    [data.students]
+  );
+
+  const allClassHistoricalRanks = useMemo(() => 
+    AnalysisEngine.calculateClassHistoricalRanks(data.students), 
     [data.students]
   );
 
@@ -186,6 +190,7 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
             selectedStudent={data.students.find(s => s.id === selectedStudentId)} 
             subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} 
             allHistoricalRanks={allHistoricalRanks}
+            allClassHistoricalRanks={allClassHistoricalRanks}
             allSubjectRanks={allSubjectRanks}
             thresholds={thresholds}
             thresholdType={effectiveThresholdType}

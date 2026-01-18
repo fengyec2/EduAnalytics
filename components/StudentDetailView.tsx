@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
@@ -19,6 +18,7 @@ interface StudentDetailViewProps {
   subjects: string[];
   gradeAveragesByPeriod: Record<string, number>;
   allHistoricalRanks: Record<string, Record<string, number>>;
+  allClassHistoricalRanks: Record<string, Record<string, number>>;
   allSubjectRanks: Record<string, Record<string, Record<string, number>>>;
   thresholds: Record<string, number>;
   thresholdType: 'rank' | 'percent';
@@ -28,7 +28,7 @@ interface StudentDetailViewProps {
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
-  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents, selectedPeriod, periodData
+  studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allClassHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents, selectedPeriod, periodData
 }) => {
   const [radarBaseline, setRadarBaseline] = useState<'class' | 'grade'>('class');
   const [selectedSubjectForTrend, setSelectedSubjectForTrend] = useState<string>(subjects[0] || '');
@@ -250,20 +250,21 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-white text-gray-400 font-bold border-b border-gray-100">
-                    <th className="px-8 py-5">Period</th>
+                    <th className="px-8 py-5 whitespace-nowrap">Period</th>
                     {subjects.flatMap(s => [
                       <th key={s} className="px-8 py-5 text-center">{s}</th>,
                       <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}名</th>
                     ])}
                     <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
-                    <th className="px-8 py-5 text-blue-600 text-right">Grade Avg</th>
-                    <th className="px-8 py-5 text-center text-blue-600">上线</th>
+                    <th className="px-8 py-5 text-blue-600 text-center">班名</th>
+                    <th className="px-8 py-5 text-purple-600 text-center">级名</th>
+                    <th className="px-8 py-5 text-center text-gray-600">上线</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {selectedStudent.history.map((h, i) => (
                     <tr key={i} className="hover:bg-blue-50/40 transition-colors">
-                      <td className="px-8 py-5 font-bold text-gray-700">{h.period}</td>
+                      <td className="px-8 py-5 font-bold text-gray-700 whitespace-nowrap">{h.period}</td>
                       {subjects.flatMap(s => [
                         <td key={s} className={`px-8 py-5 text-center transition-all ${getSubjectCellStyle(h.period, s, selectedStudent.name)}`}>
                           {h.scores[s] || '-'}
@@ -273,7 +274,19 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         </td>
                       ])}
                       <td className="px-8 py-5 font-black text-indigo-600 text-right">{h.totalScore}</td>
-                      <td className="px-8 py-5 font-black text-blue-600 text-right">{gradeAveragesByPeriod[h.period]?.toFixed(1) || '-'}</td>
+                      <td className="px-8 py-5 text-center">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase">{selectedStudent.class}</span>
+                          <span className="text-sm font-black text-blue-600">
+                            {allClassHistoricalRanks[h.period]?.[selectedStudent.name] || '-'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-center">
+                        <span className="text-sm font-black text-purple-600">
+                          #{allHistoricalRanks[h.period]?.[selectedStudent.name] || '-'}
+                        </span>
+                      </td>
                       <td className="px-8 py-5 text-center font-bold text-gray-600">
                         {getStatusLabel(h.period, selectedStudent.name)}
                       </td>

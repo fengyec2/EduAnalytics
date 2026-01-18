@@ -44,6 +44,37 @@ export const calculateHistoricalRanks = (students: StudentRecord[]) => {
 };
 
 /**
+ * 计算全周期班级内总分名次映射
+ */
+export const calculateClassHistoricalRanks = (students: StudentRecord[]) => {
+  const allPeriods = Array.from(new Set(students.flatMap(s => s.history.map(h => h.period))));
+  const classPeriodRankMap: Record<string, Record<string, number>> = {};
+
+  allPeriods.forEach(period => {
+    const ranks: Record<string, number> = {};
+    const classes = Array.from(new Set(students.map(s => s.class)));
+
+    classes.forEach(cls => {
+      const classStudents = students
+        .filter(s => s.class === cls)
+        .map(s => ({
+          name: s.name,
+          total: s.history.find(h => h.period === period)?.totalScore ?? -1
+        }))
+        .filter(s => s.total !== -1)
+        .sort((a, b) => b.total - a.total);
+
+      classStudents.forEach((s, idx) => {
+        ranks[s.name] = idx + 1;
+      });
+    });
+    classPeriodRankMap[period] = ranks;
+  });
+
+  return classPeriodRankMap;
+};
+
+/**
  * 计算全周期、全科目的名次映射
  */
 export const calculateSubjectHistoricalRanks = (students: StudentRecord[], subjects: string[]) => {
