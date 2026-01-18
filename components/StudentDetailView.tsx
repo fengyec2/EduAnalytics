@@ -256,8 +256,8 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                       <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}名</th>
                     ])}
                     <th className="px-8 py-5 text-indigo-600 text-right">My Total</th>
-                    <th className="px-8 py-5 text-blue-600 text-center">班名</th>
-                    <th className="px-8 py-5 text-purple-600 text-center">级名</th>
+                    <th className="px-8 py-5 text-blue-600 text-center">班名 (班级排名)</th>
+                    <th className="px-8 py-5 text-purple-600 text-center">级名 (年级排名)</th>
                     <th className="px-8 py-5 text-center text-gray-600">上线</th>
                   </tr>
                 </thead>
