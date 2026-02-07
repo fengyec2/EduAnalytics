@@ -102,7 +102,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
             <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Trophy className="w-3 h-3" /> {t('comparison.stat_highest_avg')}
             </h4>
-            <p className="text-3xl font-black text-amber-900">{leaderboard.highestAvg.className}</p>
+            <p className={`font-black text-amber-900 leading-tight ${leaderboard.highestAvg.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.highestAvg.className}</p>
             <p className="text-sm font-bold text-amber-700 mt-1">{leaderboard.highestAvg.average} {t('comparison.stat_points_avg')}</p>
           </div>
           
@@ -111,7 +111,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
             <h4 className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Star className="w-3 h-3" /> {t('comparison.stat_most_top10')}
             </h4>
-            <p className="text-3xl font-black text-indigo-900">{leaderboard.mostTop10.className}</p>
+            <p className={`font-black text-indigo-900 leading-tight ${leaderboard.mostTop10.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostTop10.className}</p>
             <p className="text-sm font-bold text-indigo-700 mt-1">{leaderboard.mostTop10.top10} {t('comparison.stat_students_top10')}</p>
           </div>
 
@@ -120,7 +120,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
             <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Users className="w-3 h-3" /> {t('comparison.stat_strongest_bench')}
             </h4>
-            <p className="text-3xl font-black text-emerald-900">{leaderboard.mostTop50.className}</p>
+            <p className={`font-black text-emerald-900 leading-tight ${leaderboard.mostTop50.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostTop50.className}</p>
             <p className="text-sm font-bold text-emerald-700 mt-1">{leaderboard.mostTop50.top50} {t('comparison.stat_students_top50')}</p>
           </div>
         </div>

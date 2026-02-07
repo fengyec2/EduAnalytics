@@ -505,10 +505,24 @@ export const getClassSummaries = (periodData: any[], selectedClasses: string[]) 
 
 export const getClassLeaderboard = (classSummaries: any[]) => {
   if (classSummaries.length === 0) return null;
+  
+  const maxAvg = Math.max(...classSummaries.map(s => s.average));
+  const maxTop10 = Math.max(...classSummaries.map(s => s.top10));
+  const maxTop50 = Math.max(...classSummaries.map(s => s.top50));
+
   return {
-    highestAvg: [...classSummaries].sort((a, b) => b.average - a.average)[0],
-    mostTop10: [...classSummaries].sort((a, b) => b.top10 - a.top10)[0],
-    mostTop50: [...classSummaries].sort((a, b) => b.top50 - a.top50)[0],
+    highestAvg: { 
+      className: classSummaries.filter(s => s.average === maxAvg).map(s => s.className).join(', '), 
+      average: maxAvg 
+    },
+    mostTop10: { 
+      className: classSummaries.filter(s => s.top10 === maxTop10).map(s => s.className).join(', '), 
+      top10: maxTop10 
+    },
+    mostTop50: { 
+      className: classSummaries.filter(s => s.top50 === maxTop50).map(s => s.className).join(', '), 
+      top50: maxTop50 
+    },
   };
 };
 
