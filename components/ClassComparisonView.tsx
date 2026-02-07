@@ -1,6 +1,7 @@
+
 import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, BarChart2, Star, TrendingUp, Zap, Users } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Trophy, BarChart2, Star, TrendingUp, Zap, Users, PieChart as PieIcon } from 'lucide-react';
 import { ChartContainer, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 import { useTranslation } from '../context/LanguageContext';
@@ -40,6 +41,39 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
     AnalysisEngine.calculateHeatmapMaxValues(rankingDistributionData, selectedClasses),
     [rankingDistributionData, selectedClasses]
   );
+
+  // Define tiers for population distribution
+  const tierColors = ['#be123c', '#1e40af', '#0369a1', '#0d9488', '#10b981', '#94a3b8'];
+  const tiers = [
+    { label: 'Top 10', limit: 10 },
+    { label: 'Top 50', limit: 50 },
+    { label: 'Top 100', limit: 100 },
+    { label: 'Top 200', limit: 200 },
+    { label: 'Top 400', limit: 400 }
+  ];
+
+  const populationDistData = useMemo(() => {
+    return selectedClasses.map(cls => {
+      const clsStudents = periodData.filter(s => s.class === cls);
+      const totalCount = clsStudents.length;
+      if (totalCount === 0) return { className: cls, data: [] };
+
+      const data = tiers.map((tier, idx) => {
+        const prevLimit = idx === 0 ? 0 : tiers[idx-1].limit;
+        const count = clsStudents.filter(s => s.periodSchoolRank > prevLimit && s.periodSchoolRank <= tier.limit).length;
+        return { name: tier.label, value: count, color: tierColors[idx] };
+      });
+
+      const handledCount = data.reduce((acc, d) => acc + d.value, 0);
+      data.push({
+        name: t('comparison.tier_others'),
+        value: Math.max(0, totalCount - handledCount),
+        color: tierColors[tierColors.length - 1]
+      });
+
+      return { className: cls, data: data.filter(d => d.value >= 0) };
+    });
+  }, [selectedClasses, periodData, t]);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -91,6 +125,52 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* New Section: Population Distribution Donut Charts */}
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+          <PieIcon className="w-4 h-4 text-indigo-500" /> {t('comparison.chart_population_dist')}
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {populationDistData.map((clsData, idx) => (
+            <div key={clsData.className} className="flex flex-col items-center p-4 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-all">
+              <h4 className="text-sm font-black text-gray-800 mb-2">{clsData.className}</h4>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={clsData.data}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={70}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {clsData.data.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [`${value} ${t('comparison.count')}`, '']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 w-full px-2">
+                {clsData.data.map((d, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-[10px] text-gray-500 truncate">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="truncate">{d.name}</span>
+                    <span className="font-bold ml-auto">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-lg overflow-hidden">
         <div className="px-8 py-6 bg-gray-900 text-white flex items-center justify-between">

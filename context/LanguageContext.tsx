@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'zh' | 'en';
@@ -123,6 +124,8 @@ const translations: Record<Language, TranslationDict> = {
     'comparison.count': '人数',
     'comparison.chart_gap': '学科表现差距',
     'comparison.chart_density': '精英密度热力图',
+    'comparison.chart_population_dist': '各班顶尖名次人数占比',
+    'comparison.tier_others': '其他名次',
     'kings.title': '班级尖子生对标',
     'kings.desc': '对比班级领跑者与年级顶尖高手的差距。',
     'kings.selector_prefix': '对比班级',
@@ -312,6 +315,8 @@ const translations: Record<Language, TranslationDict> = {
     'comparison.count': 'Count',
     'comparison.chart_gap': 'Subject Performance Gap',
     'comparison.chart_density': 'Elite Density Heatmap',
+    'comparison.chart_population_dist': 'Top Rank Distribution by Class',
+    'comparison.tier_others': 'Other Ranks',
     'kings.title': 'Elite Benchmarking',
     'kings.desc': 'Compare class leaders against grade-wide masters.',
     'kings.selector_prefix': 'Benchmark Class',
@@ -378,7 +383,7 @@ const translations: Record<Language, TranslationDict> = {
     'student.subject_trend_title': '{subject} Historical Rank Trend',
     'student.ledger_title': 'Historical Grade Ledger',
     'student.ledger_note': 'Note: Cell colors are dynamically matched based on metadata percentiles and actual participants.',
-    'student.ledger_period': 'Period',
+    'student.ledger_period': '周期',
     'student.ledger_total': 'My Total',
     'student.ledger_class_rank': 'Class Rank',
     'student.ledger_grade_rank': 'Grade Rank',
