@@ -531,3 +531,49 @@ export const calculateHeatmapMaxValues = (data: any[], selectedClasses: string[]
   data.forEach(row => { map[row.name] = Math.max(...selectedClasses.map(cls => row[cls] || 0)); });
   return map;
 };
+
+/**
+ * 识别学生的优势与弱势学科
+ * 基准：年级总分百分比位次
+ * 规则：单科百分比位次优于总分5%视为优势，劣于5%视为弱势
+ */
+export const getStudentSWOT = (
+  student: StudentRecord,
+  selectedPeriod: string,
+  subjects: string[],
+  allHistoricalRanks: Record<string, Record<string, number>>,
+  allSubjectRanks: Record<string, Record<string, Record<string, number>>>,
+  totalStudents: number
+) => {
+  const gradeRank = allHistoricalRanks[selectedPeriod]?.[student.name];
+  if (gradeRank === undefined) return { strengths: [], stable: [], weaknesses: [] };
+
+  const basePercentile = gradeRank / totalStudents;
+  const result: { strengths: string[], stable: string[], weaknesses: string[] } = {
+    strengths: [],
+    stable: [],
+    weaknesses: []
+  };
+
+  subjects.forEach(sub => {
+    const subRankMap = allSubjectRanks[selectedPeriod]?.[sub] || {};
+    const subRank = subRankMap[student.name];
+    if (subRank === undefined) return;
+
+    // 获取该科目在该次考试中的实际参考人数
+    const subParticipants = Math.max(...Object.values(subRankMap), 0) || totalStudents;
+    const subPercentile = subRank / subParticipants;
+    
+    const diff = basePercentile - subPercentile; // 正数表示进步/优于平均表现
+
+    if (diff > 0.05) {
+      result.strengths.push(sub);
+    } else if (diff < -0.05) {
+      result.weaknesses.push(sub);
+    } else {
+      result.stable.push(sub);
+    }
+  });
+
+  return result;
+};

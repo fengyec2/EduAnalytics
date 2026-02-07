@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'zh' | 'en';
 
@@ -198,6 +198,13 @@ const translations: Record<Language, TranslationDict> = {
     'student.ledger_grade_rank': '级名',
     'student.ledger_status': '上线情况',
     'student.select_hint': '请在上方选择一名学生以查看详细分析',
+    'student.swot_title': '优劣势学科分析',
+    'student.swot_desc': '基于选定考试 ({period}) 的总分位次对比单科位次',
+    'student.swot_strengths': '优势学科',
+    'student.swot_weaknesses': '弱势学科',
+    'student.swot_stable': '发挥正常',
+    'student.swot_empty': '暂无明显数据差异',
+    'student.swot_calc_note': '注：单科排名位次优于总分位次5%以上判定为优势，低于5%以上判定为弱势。'
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -389,6 +396,13 @@ const translations: Record<Language, TranslationDict> = {
     'student.ledger_grade_rank': 'Grade Rank',
     'student.ledger_status': 'Status',
     'student.select_hint': 'Please select a student above to view detailed analysis',
+    'student.swot_title': 'Subject Strengths & Weaknesses',
+    'student.swot_desc': 'Comparing subject percentiles against total score percentile for {period}',
+    'student.swot_strengths': 'Strengths',
+    'student.swot_weaknesses': 'Weaknesses',
+    'student.swot_stable': 'Balanced',
+    'student.swot_empty': 'No significant deviations found',
+    'student.swot_calc_note': 'Note: Strengths are subjects performing 5%+ better than the overall percentile; Weaknesses are 5%+ worse.'
   }
 };
 

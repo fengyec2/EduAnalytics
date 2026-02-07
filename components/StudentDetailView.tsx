@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame } from 'lucide-react';
+import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, Target, Zap, ShieldAlert, Minus } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer, SearchInput, SelectInput } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -53,6 +54,18 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     selectedStudent ? AnalysisEngine.calculateStreakInfo(selectedStudent, allHistoricalRanks) : null,
     [selectedStudent, allHistoricalRanks]
   );
+
+  const swotData = useMemo(() => {
+    if (!selectedStudent || !selectedPeriod) return null;
+    return AnalysisEngine.getStudentSWOT(
+      selectedStudent,
+      selectedPeriod,
+      subjects,
+      allHistoricalRanks,
+      allSubjectRanks,
+      totalStudents
+    );
+  }, [selectedStudent, selectedPeriod, subjects, allHistoricalRanks, allSubjectRanks, totalStudents]);
 
   const radarData = useMemo(() => {
     if (!selectedStudent || !selectedPeriod) return [];
@@ -148,6 +161,68 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                    <div className="flex justify-between items-center"><span className="text-xs opacity-60 uppercase">{t('student.improvement_total')}</span><span className="text-xl font-bold flex items-center gap-1">{selectedStudent.history.length > 1 ? (((selectedStudent.history[selectedStudent.history.length-1].totalScore - selectedStudent.history[0].totalScore) / selectedStudent.history[0].totalScore * 100).toFixed(1) + '%') : 'N/A'}<TrendingUp className="w-4 h-4" /></span></div>
                 </div>
               </div>
+
+              {swotData && (
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6 animate-in slide-in-from-left-4">
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-blue-600" /> {t('student.swot_title')}
+                    </h4>
+                    <p className="text-[10px] text-gray-400 mt-1">{t('student.swot_desc').replace('{period}', selectedPeriod)}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Strengths */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-emerald-600">
+                        <Zap className="w-3 h-3" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t('student.swot_strengths')}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {swotData.strengths.length > 0 ? swotData.strengths.map(s => (
+                          <span key={s} className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-200">
+                            {s}
+                          </span>
+                        )) : <span className="text-xs text-gray-300 italic">{t('student.swot_empty')}</span>}
+                      </div>
+                    </div>
+
+                    {/* Stable/Normal */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-blue-600">
+                        <Minus className="w-3 h-3" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t('student.swot_stable')}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {swotData.stable.length > 0 ? swotData.stable.map(s => (
+                          <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold border border-blue-100">
+                            {s}
+                          </span>
+                        )) : <span className="text-xs text-gray-300 italic">{t('student.swot_empty')}</span>}
+                      </div>
+                    </div>
+
+                    {/* Weaknesses */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-rose-600">
+                        <ShieldAlert className="w-3 h-3" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t('student.swot_weaknesses')}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {swotData.weaknesses.length > 0 ? swotData.weaknesses.map(s => (
+                          <span key={s} className="px-2.5 py-1 bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200">
+                            {s}
+                          </span>
+                        )) : <span className="text-xs text-gray-300 italic">{t('student.swot_empty')}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[9px] text-gray-400 italic leading-tight">
+                    {t('student.swot_calc_note')}
+                  </p>
+                </div>
+              )}
 
               {streakInfo && streakInfo.count > 0 && (
                 <div className={`p-6 rounded-2xl border shadow-sm transition-all animate-in slide-in-from-left-4 ${streakInfo.type === 'improvement' ? 'bg-emerald-50 border-emerald-100' : streakInfo.type === 'decline' ? 'bg-rose-50 border-rose-100' : 'bg-gray-50 border-gray-100'}`}>
