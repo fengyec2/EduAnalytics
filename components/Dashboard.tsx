@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3, TrendingUp } from 'lucide-react';
 import { AnalysisState } from '../types';
@@ -32,6 +33,9 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
+
+  // 新增：班级对比专用的动态阈值状态
+  const [comparisonThresholds, setComparisonThresholds] = useState<number[]>([50, 100, 200, 250, 400]);
 
   const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
   const [manualThresholds, setManualThresholds] = useState<Record<string, number>>({
@@ -111,11 +115,15 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return entry;
   }), [periodData, data.subjects, selectedClasses]);
 
-  const rankingDistributionData = useMemo(() => [10, 20, 50, 100, 200, 400].map(bucket => {
-    const entry: any = { name: `Top ${bucket}` };
-    selectedClasses.forEach(cls => { entry[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= bucket).length; });
-    return entry;
-  }), [periodData, selectedClasses]);
+  // 更新：使用动态阈值计算名次分布
+  const rankingDistributionData = useMemo(() => 
+    comparisonThresholds.sort((a, b) => a - b).map(bucket => {
+      const entry: any = { name: `Top ${bucket}`, limit: bucket };
+      selectedClasses.forEach(cls => { 
+        entry[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= bucket).length; 
+      });
+      return entry;
+    }), [periodData, selectedClasses, comparisonThresholds]);
 
   const kingsData = useMemo(() => data.subjects.map(sub => ({
     subject: sub,
@@ -158,7 +166,20 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
 
       <div className="w-full">
         {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} totalStudents={data.students.length} />}
-        {activeTab === 'comparison' && <ClassComparisonView selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} rankingDistributionData={rankingDistributionData} colors={colors} periodData={periodData} />}
+        {activeTab === 'comparison' && (
+          <ClassComparisonView 
+            selectedPeriod={selectedPeriod} 
+            classes={data.classes} 
+            selectedClasses={selectedClasses} 
+            setSelectedClasses={setSelectedClasses} 
+            classComparisonData={classComparisonData} 
+            rankingDistributionData={rankingDistributionData} 
+            colors={colors} 
+            periodData={periodData} 
+            thresholds={comparisonThresholds}
+            setThresholds={setComparisonThresholds}
+          />
+        )}
         {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
         {activeTab === 'subjectAnalysis' && (

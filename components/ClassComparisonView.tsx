@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Trophy, BarChart2, Star, TrendingUp, Zap, Users, PieChart as PieIcon } from 'lucide-react';
+import { Trophy, BarChart2, Star, TrendingUp, Zap, Users, PieChart as PieIcon, Plus, X, Settings2 } from 'lucide-react';
 import { ChartContainer, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 import { useTranslation } from '../context/LanguageContext';
@@ -15,13 +15,16 @@ interface ClassComparisonViewProps {
   rankingDistributionData: any[];
   colors: string[];
   periodData: any[];
+  thresholds: number[];
+  setThresholds: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
 const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({ 
-  selectedPeriod, classes, selectedClasses, setSelectedClasses, classComparisonData, rankingDistributionData, colors, periodData 
+  selectedPeriod, classes, selectedClasses, setSelectedClasses, classComparisonData, rankingDistributionData, colors, periodData, thresholds, setThresholds 
 }) => {
   const { t } = useTranslation();
-  
+  const [newThreshold, setNewThreshold] = useState<string>('');
+
   const classSummaries = useMemo(() => 
     AnalysisEngine.getClassSummaries(periodData, selectedClasses),
     [selectedClasses, periodData]
@@ -42,26 +45,25 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
     [rankingDistributionData, selectedClasses]
   );
 
-  // Define tiers for population distribution
-  const tierColors = ['#be123c', '#1e40af', '#0369a1', '#0d9488', '#10b981', '#94a3b8'];
-  const tiers = [
-    { label: 'Top 10', limit: 10 },
-    { label: 'Top 50', limit: 50 },
-    { label: 'Top 100', limit: 100 },
-    { label: 'Top 200', limit: 200 },
-    { label: 'Top 400', limit: 400 }
-  ];
+  // 动态生成阈值色阶
+  const tierColors = useMemo(() => {
+    const base = ['#be123c', '#1e40af', '#0369a1', '#0d9488', '#10b981', '#8b5cf6', '#d946ef'];
+    const result = thresholds.map((_, i) => base[i % base.length]);
+    result.push('#94a3b8'); // 其他
+    return result;
+  }, [thresholds]);
 
   const populationDistData = useMemo(() => {
+    const sortedThresholds = [...thresholds].sort((a, b) => a - b);
     return selectedClasses.map(cls => {
       const clsStudents = periodData.filter(s => s.class === cls);
       const totalCount = clsStudents.length;
       if (totalCount === 0) return { className: cls, data: [] };
 
-      const data = tiers.map((tier, idx) => {
-        const prevLimit = idx === 0 ? 0 : tiers[idx-1].limit;
-        const count = clsStudents.filter(s => s.periodSchoolRank > prevLimit && s.periodSchoolRank <= tier.limit).length;
-        return { name: tier.label, value: count, color: tierColors[idx] };
+      const data = sortedThresholds.map((limit, idx) => {
+        const prevLimit = idx === 0 ? 0 : sortedThresholds[idx - 1];
+        const count = clsStudents.filter(s => s.periodSchoolRank > prevLimit && s.periodSchoolRank <= limit).length;
+        return { name: `Top ${limit}`, value: count, color: tierColors[idx] };
       });
 
       const handledCount = data.reduce((acc, d) => acc + d.value, 0);
@@ -73,25 +75,73 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
 
       return { className: cls, data: data.filter(d => d.value >= 0) };
     });
-  }, [selectedClasses, periodData, t]);
+  }, [selectedClasses, periodData, t, thresholds, tierColors]);
+
+  const handleAddThreshold = () => {
+    const val = parseInt(newThreshold);
+    if (!isNaN(val) && val > 0 && !thresholds.includes(val)) {
+      setThresholds(prev => [...prev, val].sort((a, b) => a - b));
+      setNewThreshold('');
+    }
+  };
+
+  const removeThreshold = (val: number) => {
+    setThresholds(prev => prev.filter(t => t !== val));
+  };
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-gray-900">{t('comparison.title')}</h2>
-          <p className="text-xs text-gray-500 mt-1">{t('comparison.desc')}</p>
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-gray-900">{t('comparison.title')}</h2>
+            <p className="text-xs text-gray-500 mt-1">{t('comparison.desc')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {classes.map(cls => (
+              <FilterChip 
+                key={cls}
+                label={cls}
+                active={selectedClasses.includes(cls)}
+                onClick={() => setSelectedClasses(prev => prev.includes(cls) ? prev.filter(p => p !== cls) : [...prev, cls])}
+                color="blue"
+              />
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {classes.map(cls => (
-            <FilterChip 
-              key={cls}
-              label={cls}
-              active={selectedClasses.includes(cls)}
-              onClick={() => setSelectedClasses(prev => prev.includes(cls) ? prev.filter(p => p !== cls) : [...prev, cls])}
-              color="blue"
-            />
-          ))}
+
+        {/* 动态阈值配置面板 */}
+        <div className="pt-4 border-t border-gray-50 space-y-3">
+          <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <Settings2 className="w-3.5 h-3.5 text-blue-500" />
+            配置统计名次段 (阈值)
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {thresholds.sort((a,b)=>a-b).map(val => (
+              <div key={val} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 pl-3 pr-1 py-1.5 rounded-xl transition-all hover:border-blue-300">
+                <span className="text-xs font-black text-gray-700">Top {val}</span>
+                <button onClick={() => removeThreshold(val)} className="p-1 hover:bg-red-50 hover:text-red-500 rounded-lg text-gray-300 transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 ml-2">
+              <input 
+                type="number" 
+                value={newThreshold}
+                onChange={(e) => setNewThreshold(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddThreshold()}
+                placeholder="新增阈值"
+                className="w-24 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              />
+              <button 
+                onClick={handleAddThreshold}
+                className="p-1.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -126,7 +176,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
         </div>
       )}
 
-      {/* New Section: Population Distribution Donut Charts */}
+      {/* Population Distribution Donut Charts */}
       <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
           <PieIcon className="w-4 h-4 text-indigo-500" /> {t('comparison.chart_population_dist')}
