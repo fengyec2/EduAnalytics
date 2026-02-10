@@ -250,6 +250,12 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onComplete, onCancel, curre
           min: Math.min(...students.map(s => s.totalScore)),
           subjectStats: {},
           distribution: []
+        },
+        // 初始导入时注入默认 settings
+        settings: currentData?.settings || {
+          manualThresholds: { '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600 },
+          comparisonThresholds: [50, 100, 200, 250, 400],
+          thresholdType: 'rank'
         }
       });
     } catch (err: any) {

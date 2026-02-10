@@ -132,7 +132,7 @@ const AppContent: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <Dashboard data={data} />
+                <Dashboard data={data} onUpdate={handleDataUpdate} />
               </div>
             )}
           </>

@@ -39,6 +39,12 @@ export interface AnalysisState {
     subjectStats: Record<string, { average: number; max: number; min: number }>;
     distribution: { name: string; value: number; color: string }[];
   };
+  // 新增：持久化配置项
+  settings?: {
+    manualThresholds: Record<string, number>;
+    comparisonThresholds: number[];
+    thresholdType: 'rank' | 'percent';
+  };
 }
 
 export type ImportMode = 'complete' | 'incomplete';

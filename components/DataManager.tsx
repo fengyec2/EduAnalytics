@@ -104,7 +104,8 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
     if (newStudents.length === 0) {
       onDataUpdated(null);
     } else {
-      const rawClasses = [...new Set(newStudents.map(s => s.class))];
+      // Fix: Explicitly cast to string[] to resolve 'unknown[]' assignment error when calling sortClasses
+      const rawClasses = [...new Set(newStudents.map(s => s.class))] as string[];
       const newSubjects = [...new Set(newStudents.flatMap(s => Object.keys(s.history[0]?.scores || {})))];
       
       onDataUpdated({
@@ -146,7 +147,8 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
       highest: max,
       topStudentName: topStudent?.name || 'N/A',
       subjects: subjects,
-      classes: AnalysisEngine.sortClasses([...new Set(periodStudents.map(s => s.class))])
+      // Fix: Explicitly cast to string[] to resolve 'unknown[]' assignment error when calling sortClasses
+      classes: AnalysisEngine.sortClasses([...new Set(periodStudents.map(s => s.class))] as string[])
     };
   }, [selectedExamName, initialData]);
 

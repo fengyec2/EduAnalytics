@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3, TrendingUp } from 'lucide-react';
 import { AnalysisState } from '../types';
 import { StatCard, TabButton } from './SharedComponents';
@@ -17,7 +17,7 @@ import ProgressAnalysisView from './ProgressAnalysisView';
 
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
-const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
+const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState) => void }> = ({ data, onUpdate }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'subjectAnalysis' | 'parameters' | 'student' | 'progress'>('school');
   
@@ -34,13 +34,35 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
 
-  // 新增：班级对比专用的动态阈值状态
-  const [comparisonThresholds, setComparisonThresholds] = useState<number[]>([50, 100, 200, 250, 400]);
+  // 配置状态：优先从持久化数据读取
+  const [comparisonThresholds, setComparisonThresholds] = useState<number[]>(
+    data.settings?.comparisonThresholds || [50, 100, 200, 250, 400]
+  );
+  const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>(
+    data.settings?.thresholdType || 'rank'
+  );
+  const [manualThresholds, setManualThresholds] = useState<Record<string, number>>(
+    data.settings?.manualThresholds || {
+      '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
+    }
+  );
 
-  const [thresholdType, setThresholdType] = useState<'rank' | 'percent'>('rank');
-  const [manualThresholds, setManualThresholds] = useState<Record<string, number>>({
-    '清北': 5, 'C9': 30, '高分数': 100, '名校': 300, '特控': 600,
-  });
+  // 监听配置变化并同步到全局状态
+  useEffect(() => {
+    const newSettings = {
+      manualThresholds,
+      comparisonThresholds,
+      thresholdType
+    };
+    
+    // 只有当配置确实发生变化时才触发更新，避免死循环
+    if (JSON.stringify(data.settings) !== JSON.stringify(newSettings)) {
+      onUpdate({
+        ...data,
+        settings: newSettings
+      });
+    }
+  }, [manualThresholds, comparisonThresholds, thresholdType, data, onUpdate]);
 
   const allHistoricalRanks = useMemo(() => 
     AnalysisEngine.calculateHistoricalRanks(data.students), 
@@ -115,7 +137,6 @@ const Dashboard: React.FC<{ data: AnalysisState }> = ({ data }) => {
     return entry;
   }), [periodData, data.subjects, selectedClasses]);
 
-  // 更新：使用动态阈值计算名次分布
   const rankingDistributionData = useMemo(() => 
     comparisonThresholds.sort((a, b) => a - b).map(bucket => {
       const entry: any = { name: `Top ${bucket}`, limit: bucket };

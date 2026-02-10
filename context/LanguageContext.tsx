@@ -1,5 +1,6 @@
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+// Fix: Import React to resolve 'Cannot find namespace React' error when using React.FC or ReactNode
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'zh' | 'en';
 
@@ -313,7 +314,7 @@ const translations: Record<Language, TranslationDict> = {
     'comparison.stat_students_top10': 'Students in Top 10',
     'comparison.stat_strongest_bench': 'Strongest Bench (Top 50)',
     'comparison.stat_students_top50': 'Students in Top 50',
-    'comparison.matrix_title': 'Subject Competition Matrix',
+    'comparison.title_matrix': 'Subject Competition Matrix',
     'comparison.matrix_desc': 'Highlighted cells indicate the leading class in that subject.',
     'comparison.matrix_header': 'Subject / Metric',
     'comparison.matrix_total_avg': 'TOTAL AVG',
