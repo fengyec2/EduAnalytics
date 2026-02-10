@@ -8,16 +8,6 @@ interface TranslationDict {
   [key: string]: string;
 }
 
-// Fix: Added LanguageContextType interface to define the shape of the language context
-interface LanguageContextType {
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
-}
-
-// Fix: Created LanguageContext using React.createContext
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-
 const translations: Record<Language, TranslationDict> = {
   zh: {
     'nav.dashboard': '仪表盘',
@@ -38,7 +28,6 @@ const translations: Record<Language, TranslationDict> = {
     'tab.subject': '单科分析',
     'tab.progress': '进退步分析',
     'tab.student': '学生详情',
-    'tab.export': '数据导出',
     'school.config_title': '上线分析参数配置',
     'school.imported_meta': '使用导入元数据推算',
     'school.rank_mode': '按绝对名次',
@@ -221,18 +210,7 @@ const translations: Record<Language, TranslationDict> = {
     'student.swot_weaknesses': '弱势学科',
     'student.swot_stable': '发挥正常',
     'student.swot_empty': '暂无明显数据差异',
-    'student.swot_calc_note': '注：单科排名位次优于总分位次5%以上判定为优势，低于5%以上判定为弱势。',
-    'export.title': '数据导出中心',
-    'export.desc': '生成专业的分析报告或导出原始学情数据。',
-    'export.pdf_title': '学情分析报告 (PDF)',
-    'export.pdf_desc': '包含图表、统计卡片及摘要的精美报告，适合打印或分发。',
-    'export.excel_title': '原始数据集 (Excel)',
-    'export.excel_desc': '包含所有成绩、排名及学科指标的完整电子表格。',
-    'export.config_sections': '选择导出内容',
-    'export.btn_generate_pdf': '生成 PDF 报告',
-    'export.btn_generate_excel': '导出 Excel 文件',
-    'export.filename_report': '学情分析报告',
-    'export.filename_data': '学情分析原始数据'
+    'student.swot_calc_note': '注：单科排名位次优于总分位次5%以上判定为优势，低于5%以上判定为弱势。'
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -253,7 +231,6 @@ const translations: Record<Language, TranslationDict> = {
     'tab.subject': 'Subject Analysis',
     'tab.progress': 'Progress Analysis',
     'tab.student': 'Student Detail',
-    'tab.export': 'Export Center',
     'school.config_title': 'Admissions Thresholds Config',
     'school.imported_meta': 'Derived from Metadata',
     'school.rank_mode': 'By Absolute Rank',
@@ -436,20 +413,17 @@ const translations: Record<Language, TranslationDict> = {
     'student.swot_weaknesses': 'Weaknesses',
     'student.swot_stable': 'Balanced',
     'student.swot_empty': 'No significant deviations found',
-    'student.swot_calc_note': 'Note: Strengths are subjects performing 5%+ better than the overall percentile; Weaknesses are 5%+ worse.',
-    'export.title': 'Data Export Center',
-    'export.desc': 'Generate professional analysis reports or download raw datasets.',
-    'export.pdf_title': 'Analysis Report (PDF)',
-    'export.pdf_desc': 'A high-fidelity report with charts and insights, optimized for print.',
-    'export.excel_title': 'Raw Dataset (Excel)',
-    'export.excel_desc': 'Comprehensive spreadsheet with all scores, ranks, and parameters.',
-    'export.config_sections': 'Choose Modules to Export',
-    'export.btn_generate_pdf': 'Generate PDF Report',
-    'export.btn_generate_excel': 'Download Excel File',
-    'export.filename_report': 'Academic_Analysis_Report',
-    'export.filename_data': 'Academic_Dataset'
+    'student.swot_calc_note': 'Note: Strengths are subjects performing 5%+ better than the overall percentile; Weaknesses are 5%+ worse.'
   }
 };
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {

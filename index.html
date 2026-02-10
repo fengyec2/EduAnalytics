@@ -34,48 +34,6 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #cbd5e1;
     }
-
-    /* Print Optimizations */
-    @media print {
-      @page {
-        margin: 1.5cm;
-        size: A4 portrait;
-      }
-      body {
-        background-color: white !important;
-        color: black !important;
-        font-size: 10pt;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .print-break-inside-avoid {
-        break-inside: avoid;
-      }
-      .print-shadow-none {
-        box-shadow: none !important;
-      }
-      .print-border-none {
-        border: none !important;
-      }
-      .recharts-responsive-container {
-        width: 100% !important;
-        height: 350px !important;
-        min-height: 350px !important;
-      }
-      .print-mt-10 {
-        margin-top: 2.5rem !important;
-      }
-      /* Ensure text is black for clarity */
-      h1, h2, h3, h4, p, span, td, th {
-        color: black !important;
-      }
-      /* Keep colors for specific status indicators */
-      .bg-emerald-50, .bg-rose-50, .bg-blue-50 {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-    }
   </style>
 <script type="importmap">
 {

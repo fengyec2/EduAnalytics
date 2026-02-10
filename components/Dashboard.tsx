@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3, TrendingUp, Download } from 'lucide-react';
+import { Users, Layers, Target, Award, History, Crown, Calculator, Calendar, BarChart3, TrendingUp } from 'lucide-react';
 import { AnalysisState } from '../types';
 import { StatCard, TabButton } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -14,13 +14,12 @@ import ExamParametersView from './ExamParametersView';
 import StudentDetailView from './StudentDetailView';
 import SubjectAnalysisView from './SubjectAnalysisView';
 import ProgressAnalysisView from './ProgressAnalysisView';
-import ExportView from './ExportView';
 
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState) => void }> = ({ data, onUpdate }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'subjectAnalysis' | 'parameters' | 'student' | 'progress' | 'export'>('school');
+  const [activeTab, setActiveTab] = useState<'school' | 'comparison' | 'kings' | 'subjectAnalysis' | 'parameters' | 'student' | 'progress'>('school');
   
   const allPeriods = useMemo(() => 
     data.students[0]?.history.map(h => h.period) || [], 
@@ -161,16 +160,14 @@ const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState)
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Dashboard Stats (Visible on screen and report) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print-break-inside-avoid">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} title={t('stat.total_students')} value={data.students.length.toString()} subtitle="Cohort Size" />
         <StatCard icon={<Layers className="w-5 h-5 text-green-600" />} title={t('stat.classes')} value={data.classes.length.toString()} subtitle="Groups" />
         <StatCard icon={<Target className="w-5 h-5 text-purple-600" />} title={t('stat.above_line')} value={aboveLineCount.toString()} subtitle={selectedPeriod} />
         <StatCard icon={<Award className="w-5 h-5 text-orange-600" />} title={t('stat.best_score')} value={data.schoolStats.max.toString()} subtitle="School Record" />
       </div>
 
-      {/* Navigation and Selectors (Hidden on print) */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between no-print">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
           <TabButton active={activeTab === 'school'} onClick={() => setActiveTab('school')} icon={<History className="w-4 h-4"/>} label={t('tab.school')} />
           <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<Layers className="w-4 h-4"/>} label={t('tab.comparison')} />
@@ -179,7 +176,6 @@ const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState)
           <TabButton active={activeTab === 'subjectAnalysis'} onClick={() => setActiveTab('subjectAnalysis')} icon={<BarChart3 className="w-4 h-4"/>} label={t('tab.subject')} />
           <TabButton active={activeTab === 'progress'} onClick={() => setActiveTab('progress')} icon={<TrendingUp className="w-4 h-4"/>} label={t('tab.progress')} />
           <TabButton active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<Target className="w-4 h-4"/>} label={t('tab.student')} />
-          <TabButton active={activeTab === 'export'} onClick={() => setActiveTab('export')} icon={<Download className="w-4 h-4"/>} label={t('tab.export')} />
         </div>
         <div className="flex items-center gap-3 bg-blue-50/50 px-4 py-2 rounded-2xl border border-blue-100">
           <Calendar className="w-4 h-4 text-blue-600" />
@@ -189,124 +185,62 @@ const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState)
         </div>
       </div>
 
-      {/* Main View Container */}
       <div className="w-full">
-        {/* Export Center view specifically handles its own UI */}
-        {activeTab === 'export' && (
-          <ExportView 
-            data={data} 
+        {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} totalStudents={data.students.length} />}
+        {activeTab === 'comparison' && (
+          <ClassComparisonView 
             selectedPeriod={selectedPeriod} 
+            classes={data.classes} 
             selectedClasses={selectedClasses} 
-            allHistoricalRanks={allHistoricalRanks}
-            allSubjectRanks={allSubjectRanks}
-            examParameters={examParameters}
-            classComparisonData={classComparisonData}
-            rankingDistributionData={rankingDistributionData}
-            kingsData={kingsData}
-            duelData={duelData}
+            setSelectedClasses={setSelectedClasses} 
+            classComparisonData={classComparisonData} 
+            rankingDistributionData={rankingDistributionData} 
+            colors={colors} 
+            periodData={periodData} 
+            thresholds={comparisonThresholds}
+            setThresholds={setComparisonThresholds}
           />
         )}
-
-        {/* Regular Tabs (Hidden when printing if activeTab is 'export') */}
-        <div className={activeTab === 'export' ? 'no-print' : ''}>
-          {activeTab === 'school' && <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} totalStudents={data.students.length} />}
-          {activeTab === 'comparison' && (
-            <ClassComparisonView 
-              selectedPeriod={selectedPeriod} 
-              classes={data.classes} 
-              selectedClasses={selectedClasses} 
-              setSelectedClasses={setSelectedClasses} 
-              classComparisonData={classComparisonData} 
-              rankingDistributionData={rankingDistributionData} 
-              colors={colors} 
-              periodData={periodData} 
-              thresholds={comparisonThresholds}
-              setThresholds={setComparisonThresholds}
-            />
-          )}
-          {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
-          {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
-          {activeTab === 'subjectAnalysis' && (
-            <SubjectAnalysisView 
-              selectedPeriod={selectedPeriod}
-              periodData={periodData}
-              subjects={data.subjects}
-              classes={data.classes}
-              allSubjectRanks={allSubjectRanks}
-              thresholds={thresholds}
-              thresholdType={effectiveThresholdType}
-              totalStudents={data.students.length}
-            />
-          )}
-          {activeTab === 'progress' && (
-            <ProgressAnalysisView 
-              students={data.students}
-              allPeriods={allPeriods}
-              allHistoricalRanks={allHistoricalRanks}
-              classes={data.classes}
-            />
-          )}
-          {activeTab === 'student' && (
-            <StudentDetailView 
-              studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} 
-              classFilter={classFilter} setClassFilter={setClassFilter} classes={data.classes} 
-              selectableStudents={data.students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) && (classFilter === 'all' || s.class === classFilter))} 
-              selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} 
-              selectedStudent={data.students.find(s => s.id === selectedStudentId)} 
-              subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} 
-              allHistoricalRanks={allHistoricalRanks}
-              allClassHistoricalRanks={allClassHistoricalRanks}
-              allSubjectRanks={allSubjectRanks}
-              thresholds={thresholds}
-              thresholdType={effectiveThresholdType}
-              totalStudents={data.students.length}
-              selectedPeriod={selectedPeriod}
-              periodData={periodData}
-            />
-          )}
-        </div>
-
-        {/* PRINT ONLY: Sequential Report Rendering */}
-        {/* This block only appears during browser printing when the Export tab is active or specifically triggered */}
-        <div className="hidden print:block space-y-12">
-           <div className="text-center py-10 border-b-2 border-gray-900 mb-10">
-              <h1 className="text-4xl font-black text-gray-900">{t('export.filename_report')}</h1>
-              <p className="text-lg text-gray-500 mt-2">{selectedPeriod} • {new Date().toLocaleDateString()}</p>
-           </div>
-           
-           <div className="print-break-inside-avoid">
-             <h2 className="text-xl font-black mb-4 flex items-center gap-2">
-                <History className="w-5 h-5" /> {t('tab.school')}
-             </h2>
-             <SchoolView selectedPeriod={selectedPeriod} periodData={periodData} subjects={data.subjects} thresholds={thresholds} setThresholds={setManualThresholds} thresholdType={effectiveThresholdType} setThresholdType={setThresholdType} hasImportedStatus={hasImportedStatus} totalStudents={data.students.length} />
-           </div>
-
-           <div className="print-break-inside-avoid print-mt-10">
-             <h2 className="text-xl font-black mb-4 flex items-center gap-2">
-                <Layers className="w-5 h-5" /> {t('tab.comparison')}
-             </h2>
-             <ClassComparisonView 
-                selectedPeriod={selectedPeriod} classes={data.classes} selectedClasses={selectedClasses} 
-                setSelectedClasses={setSelectedClasses} classComparisonData={classComparisonData} 
-                rankingDistributionData={rankingDistributionData} colors={colors} 
-                periodData={periodData} thresholds={comparisonThresholds} setThresholds={setComparisonThresholds}
-              />
-           </div>
-
-           <div className="print-break-inside-avoid print-mt-10">
-             <h2 className="text-xl font-black mb-4 flex items-center gap-2">
-                <Calculator className="w-5 h-5" /> {t('tab.parameters')}
-             </h2>
-             <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />
-           </div>
-           
-           <div className="print-break-inside-avoid print-mt-10">
-             <h2 className="text-xl font-black mb-4 flex items-center gap-2">
-                <Crown className="w-5 h-5" /> {t('tab.kings')}
-             </h2>
-             <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />
-           </div>
-        </div>
+        {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
+        {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
+        {activeTab === 'subjectAnalysis' && (
+          <SubjectAnalysisView 
+            selectedPeriod={selectedPeriod}
+            periodData={periodData}
+            subjects={data.subjects}
+            classes={data.classes}
+            allSubjectRanks={allSubjectRanks}
+            thresholds={thresholds}
+            thresholdType={effectiveThresholdType}
+            totalStudents={data.students.length}
+          />
+        )}
+        {activeTab === 'progress' && (
+          <ProgressAnalysisView 
+            students={data.students}
+            allPeriods={allPeriods}
+            allHistoricalRanks={allHistoricalRanks}
+            classes={data.classes}
+          />
+        )}
+        {activeTab === 'student' && (
+          <StudentDetailView 
+            studentSearchTerm={studentSearchTerm} setStudentSearchTerm={setStudentSearchTerm} 
+            classFilter={classFilter} setClassFilter={setClassFilter} classes={data.classes} 
+            selectableStudents={data.students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) && (classFilter === 'all' || s.class === classFilter))} 
+            selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} 
+            selectedStudent={data.students.find(s => s.id === selectedStudentId)} 
+            subjects={data.subjects} gradeAveragesByPeriod={gradeAveragesByPeriod} 
+            allHistoricalRanks={allHistoricalRanks}
+            allClassHistoricalRanks={allClassHistoricalRanks}
+            allSubjectRanks={allSubjectRanks}
+            thresholds={thresholds}
+            thresholdType={effectiveThresholdType}
+            totalStudents={data.students.length}
+            selectedPeriod={selectedPeriod}
+            periodData={periodData}
+          />
+        )}
       </div>
     </div>
   );
