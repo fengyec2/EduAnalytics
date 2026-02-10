@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Filter, ArrowUpDown, TrendingUp, TrendingDown, Search, Calculator, Calendar } from 'lucide-react';
+import { Filter, ArrowUpDown, TrendingUp, TrendingDown, Search, Calculator, Calendar, Flame, Target } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { SelectInput, SearchInput, FilterChip } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -16,6 +17,7 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
   students, allPeriods, allHistoricalRanks, classes
 }) => {
   const { t } = useTranslation();
+  const [activeSubTab, setActiveSubTab] = useState<'coefficient' | 'streak'>('coefficient');
   const [periodX, setPeriodX] = useState<string>(allPeriods[allPeriods.length - 2] || allPeriods[0] || '');
   const [periodY, setPeriodY] = useState<string>(allPeriods[allPeriods.length - 1] || '');
   const [selectedClasses, setSelectedClasses] = useState<string[]>(classes);
@@ -25,27 +27,48 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
     direction: 'desc'
   });
 
-  const analysisData = useMemo(() => {
+  const coefficientData = useMemo(() => {
     const rawData = AnalysisEngine.getProgressAnalysisData(students, periodX, periodY, allHistoricalRanks);
-    
-    // Filter by class and search term
     return rawData.filter(d => 
       selectedClasses.includes(d.class) && 
       d.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [students, periodX, periodY, allHistoricalRanks, selectedClasses, searchTerm]);
 
+  const streakData = useMemo(() => {
+    return students
+      .filter(s => selectedClasses.includes(s.class) && s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .map(student => {
+        const info = AnalysisEngine.calculateRangeStreakInfo(student, allHistoricalRanks, allPeriods, periodX, periodY);
+        const ranksX = allHistoricalRanks[periodX] || {};
+        const ranksY = allHistoricalRanks[periodY] || {};
+        
+        return {
+          name: student.name,
+          class: student.class,
+          rankX: ranksX[student.name] || '-',
+          rankY: ranksY[student.name] || '-',
+          rankChange: info.totalChange,
+          streakCount: info.count,
+          type: info.type
+        };
+      })
+      .filter(d => d.rankX !== '-' && d.rankY !== '-');
+  }, [students, periodX, periodY, allHistoricalRanks, allPeriods, selectedClasses, searchTerm]);
+
+  const currentData = activeSubTab === 'coefficient' ? coefficientData : streakData;
+
   const sortedData = useMemo(() => {
-    return [...analysisData].sort((a: any, b: any) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
+    return [...currentData].sort((a: any, b: any) => {
+      // Handle the rank columns which might be strings/numbers
+      const valA = a[sortConfig.key];
+      const valB = b[sortConfig.key];
+      
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [analysisData, sortConfig]);
+  }, [currentData, sortConfig]);
 
   const toggleSort = (key: string) => {
     setSortConfig(prev => ({
@@ -107,16 +130,37 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
           </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <SearchInput 
-             className="w-full md:w-64"
-             placeholder={t('common.search')}
-             value={searchTerm}
-             onChange={setSearchTerm}
-          />
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-            <Calculator className="w-3 h-3 text-blue-600" />
-            {t('progress.coefficient_formula')}
+        <div className="pt-4 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex bg-gray-100 p-1.5 rounded-xl self-start">
+            <button 
+              onClick={() => { setActiveSubTab('coefficient'); setSortConfig({ key: 'coefficient', direction: 'desc' }); }}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeSubTab === 'coefficient' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              {t('progress.subtab_coefficient')}
+            </button>
+            <button 
+              onClick={() => { setActiveSubTab('streak'); setSortConfig({ key: 'streakCount', direction: 'desc' }); }}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeSubTab === 'streak' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              {t('progress.subtab_streak')}
+            </button>
+          </div>
+          
+          <div className="flex-1 w-full md:w-auto flex flex-col md:flex-row items-center gap-4">
+            <SearchInput 
+               className="w-full md:flex-1"
+               placeholder={t('common.search')}
+               value={searchTerm}
+               onChange={setSearchTerm}
+            />
+            {activeSubTab === 'coefficient' && (
+              <div className="shrink-0 flex items-center gap-2 text-xs font-bold text-gray-400 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                <Calculator className="w-3 h-3 text-blue-600" />
+                {t('progress.coefficient_formula')}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -124,30 +168,33 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-900 text-white">
+            <thead className={`${activeSubTab === 'coefficient' ? 'bg-gray-900' : 'bg-indigo-900'} text-white`}>
               <tr>
-                <th className="px-6 py-5 cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('name')}>
+                <th className="px-6 py-5 cursor-pointer transition-colors" onClick={() => toggleSort('name')}>
                   <div className="flex items-center gap-2">{t('progress.table_name')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
-                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankX')}>
+                <th className="px-6 py-5 text-center cursor-pointer transition-colors" onClick={() => toggleSort('rankX')}>
                   <div className="flex items-center justify-center gap-2">{t('progress.table_rank_x').replace('{period}', periodX || '')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
-                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankY')}>
+                <th className="px-6 py-5 text-center cursor-pointer transition-colors" onClick={() => toggleSort('rankY')}>
                   <div className="flex items-center justify-center gap-2">{t('progress.table_rank_x').replace('{period}', periodY || '')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
-                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('rankChange')}>
+                <th className="px-6 py-5 text-center cursor-pointer transition-colors" onClick={() => toggleSort('rankChange')}>
                   <div className="flex items-center justify-center gap-2">{t('progress.table_rank_change')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                 </th>
-                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('coefficient')}>
-                  <div className="flex items-center justify-center gap-2">{t('progress.table_coefficient')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-                </th>
-                <th className="px-6 py-5 text-center cursor-pointer hover:bg-gray-800 transition-colors" onClick={() => toggleSort('streakCount')}>
-                  <div className="flex items-center justify-center gap-2">{t('progress.table_streak')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
-                </th>
+                {activeSubTab === 'coefficient' ? (
+                  <th className="px-6 py-5 text-center cursor-pointer transition-colors" onClick={() => toggleSort('coefficient')}>
+                    <div className="flex items-center justify-center gap-2">{t('progress.table_coefficient')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  </th>
+                ) : (
+                  <th className="px-6 py-5 text-center cursor-pointer transition-colors" onClick={() => toggleSort('streakCount')}>
+                    <div className="flex items-center justify-center gap-2">{t('progress.table_streak')} <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedData.map((row, idx) => (
+              {sortedData.map((row: any, idx) => (
                 <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-bold text-gray-900">{row.name}</div>
@@ -162,18 +209,24 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${row.coefficient > 0 ? 'bg-emerald-100 text-emerald-700' : row.coefficient < 0 ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {row.coefficient > 0 ? `+${row.coefficient.toFixed(2)}` : row.coefficient.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center font-bold">
-                    {row.streakCount !== 0 ? (
-                      <span className={`text-xs ${row.streakCount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {row.streakCount > 0 
-                          ? t('progress.table_streak_up').replace('{count}', String(row.streakCount))
-                          : t('progress.table_streak_down').replace('{count}', String(Math.abs(row.streakCount)))}
+                    {activeSubTab === 'coefficient' ? (
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${row.coefficient > 0 ? 'bg-emerald-100 text-emerald-700' : row.coefficient < 0 ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {row.coefficient > 0 ? `+${row.coefficient.toFixed(2)}` : row.coefficient.toFixed(2)}
                       </span>
-                    ) : '-'}
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        {row.streakCount > 0 ? (
+                          <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black ${row.type === 'improvement' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                            <Flame className={`w-3.5 h-3.5 ${row.type === 'improvement' ? 'text-amber-500' : 'text-rose-500'}`} />
+                            {row.type === 'improvement' 
+                              ? t('progress.table_streak_up').replace('{count}', String(row.streakCount))
+                              : t('progress.table_streak_down').replace('{count}', String(row.streakCount))}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-xs">-</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -187,6 +240,19 @@ const ProgressAnalysisView: React.FC<ProgressAnalysisViewProps> = ({
             </tbody>
           </table>
         </div>
+      </div>
+      
+      <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+        <h4 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4" /> 
+          {activeSubTab === 'coefficient' ? '分析逻辑：点对点对比' : '分析逻辑：区间趋势分析'}
+        </h4>
+        <p className="text-sm text-blue-800 leading-relaxed">
+          {activeSubTab === 'coefficient' 
+            ? `当前模式仅对比 ${periodX} 与 ${periodY} 两次考试的名次变动。系数越接近 ±2.0，说明变动幅度相对于初始位次越剧烈。`
+            : `当前模式分析从 ${periodX} 到 ${periodY} 期间，学生是否保持了连续的进步或退步。名次变动反映了该考试区间内的净增量。`
+          }
+        </p>
       </div>
     </div>
   );

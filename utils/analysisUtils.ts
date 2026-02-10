@@ -417,6 +417,48 @@ export const calculateStreakInfo = (student: StudentRecord, allHistoricalRanks: 
   return { count, type, totalChange, steps };
 };
 
+/**
+ * 在特定范围内计算进退步连胜信息
+ */
+export const calculateRangeStreakInfo = (
+  student: StudentRecord, 
+  allHistoricalRanks: Record<string, Record<string, number>>,
+  allPeriods: string[],
+  periodX: string,
+  periodY: string
+) => {
+  const startIdx = allPeriods.indexOf(periodX);
+  const endIdx = allPeriods.indexOf(periodY);
+  
+  // 确保范围合法
+  const range = allPeriods.slice(Math.min(startIdx, endIdx), Math.max(startIdx, endIdx) + 1);
+  const studentName = student.name;
+  
+  const rankList: number[] = range
+    .map(p => allHistoricalRanks[p]?.[studentName])
+    .filter((r): r is number => r !== undefined);
+
+  if (rankList.length < 2) return { count: 0, type: 'stable', totalChange: 0 };
+
+  const last = rankList[rankList.length - 1];
+  const prev = rankList[rankList.length - 2];
+  
+  if (last === prev) return { count: 0, type: 'stable', totalChange: rankList[0] - last };
+
+  const isImproving = last < prev;
+  const type = isImproving ? 'improvement' : 'decline';
+  let count = 0;
+
+  for (let i = rankList.length - 1; i > 0; i--) {
+    const current = rankList[i], previous = rankList[i - 1], diff = previous - current;
+    if ((isImproving && diff > 0) || (!isImproving && diff < 0)) {
+      count++;
+    } else break;
+  }
+
+  return { count, type, totalChange: rankList[0] - last };
+};
+
 export const getAdmissionCategory = (rank: number, thresholds: Record<string, number>, thresholdType: 'rank' | 'percent', totalStudents: number, snapshotStatus?: string) => {
   if (snapshotStatus && snapshotStatus !== '' && snapshotStatus !== '未上线') return snapshotStatus;
   const lines = [{ key: '清北', label: '清北' }, { key: 'C9', label: 'C9' }, { key: '高分数', label: '高分' }, { key: '名校', label: '名校' }, { key: '特控', label: '特控' }];
