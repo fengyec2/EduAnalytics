@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Trophy, BarChart2, Star, TrendingUp, Zap, Users, PieChart as PieIcon, Plus, X, Settings2 } from 'lucide-react';
-import { ChartContainer, FilterChip } from './SharedComponents';
+import { Trophy, BarChart2, Star, TrendingUp, Zap, Users, PieChart as PieIcon, Plus, X, Settings2, Target } from 'lucide-react';
+import { ChartContainer, FilterChip, SelectInput } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
 import { useTranslation } from '../context/LanguageContext';
 
@@ -24,6 +24,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
 }) => {
   const { t } = useTranslation();
   const [newThreshold, setNewThreshold] = useState<string>('');
+  const [ownershipThreshold, setOwnershipThreshold] = useState<number>(thresholds[0] || 50);
 
   const classSummaries = useMemo(() => 
     AnalysisEngine.getClassSummaries(periodData, selectedClasses),
@@ -76,6 +77,33 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
       return { className: cls, data: data.filter(d => d.value >= 0) };
     });
   }, [selectedClasses, periodData, t, thresholds, tierColors]);
+
+  // 计算精英占有率环状图数据
+  const ownershipData = useMemo(() => {
+    if (!ownershipThreshold) return [];
+    
+    const results = selectedClasses.map((cls, idx) => {
+      const count = periodData.filter(s => s.class === cls && s.periodSchoolRank <= ownershipThreshold).length;
+      return {
+        name: cls,
+        value: count,
+        color: colors[idx % colors.length]
+      };
+    });
+
+    const totalInSelected = results.reduce((acc, r) => acc + r.value, 0);
+    const otherCount = ownershipThreshold - totalInSelected;
+
+    if (otherCount > 0) {
+      results.push({
+        name: t('comparison.other_classes'),
+        value: otherCount,
+        color: '#e2e8f0'
+      });
+    }
+
+    return results.filter(r => r.value > 0);
+  }, [selectedClasses, periodData, ownershipThreshold, colors, t]);
 
   const handleAddThreshold = () => {
     const val = parseInt(newThreshold);
@@ -175,6 +203,85 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Elite Ownership Pie Chart Section */}
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative group overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-bl-full -z-10 transition-transform group-hover:scale-110" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div>
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Target className="w-4 h-4 text-indigo-500" /> {t('comparison.ownership_title').replace('{threshold}', String(ownershipThreshold))}
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">展示所选班级在年级顶尖段位中的名额分布情况。</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('comparison.ownership_selector')}</span>
+            <SelectInput 
+              containerClassName="min-w-[140px]"
+              value={ownershipThreshold}
+              onChange={(e) => setOwnershipThreshold(parseInt(e.target.value))}
+            >
+              {thresholds.map(t => <option key={t} value={t}>Top {t}</option>)}
+            </SelectInput>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="h-[320px] relative">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Total Capacity</span>
+              <span className="text-4xl font-black text-indigo-900">{ownershipThreshold}</span>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={ownershipData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={85}
+                  outerRadius={115}
+                  paddingAngle={5}
+                  dataKey="value"
+                  animationBegin={0}
+                  animationDuration={1500}
+                >
+                  {ownershipData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number) => [`${value} ${t('comparison.count')}`, '']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ownershipData.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-sm font-bold text-gray-700">{item.name}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-black text-indigo-900">{item.value}</span>
+                    <span className="text-[10px] font-bold text-gray-400">{((item.value / ownershipThreshold) * 100).toFixed(1)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+              <p className="text-[10px] text-indigo-700 leading-relaxed font-medium">
+                注：该环状图的总容量固定为设定阈值 {ownershipThreshold}。
+                各班级占比反映了其在全校前 {ownershipThreshold} 名中的“精英浓度”。
+                灰色部分代表非选定班级的占位。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Population Distribution Donut Charts */}
       <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
