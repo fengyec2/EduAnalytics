@@ -26,9 +26,13 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
   const [newThreshold, setNewThreshold] = useState<string>('');
   const [ownershipThreshold, setOwnershipThreshold] = useState<number>(thresholds[0] || 50);
 
+  // Use the min and max from thresholds for the dashboard cards
+  const eliteThreshold = useMemo(() => thresholds.length > 0 ? Math.min(...thresholds) : 10, [thresholds]);
+  const benchThreshold = useMemo(() => thresholds.length > 0 ? Math.max(...thresholds) : 50, [thresholds]);
+
   const classSummaries = useMemo(() => 
-    AnalysisEngine.getClassSummaries(periodData, selectedClasses),
-    [selectedClasses, periodData]
+    AnalysisEngine.getClassSummaries(periodData, selectedClasses, eliteThreshold, benchThreshold),
+    [selectedClasses, periodData, eliteThreshold, benchThreshold]
   );
 
   const leaderboard = useMemo(() => 
@@ -187,19 +191,19 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           <div className="bg-gradient-to-br from-indigo-50 to-blue-100 p-6 rounded-3xl border border-indigo-200 shadow-sm relative overflow-hidden group">
             <Zap className="w-20 h-20 text-indigo-200/50 absolute -right-4 -bottom-4 rotate-12 group-hover:scale-110 transition-transform" />
             <h4 className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Star className="w-3 h-3" /> {t('comparison.stat_most_top10')}
+              <Star className="w-3 h-3" /> {t('comparison.stat_most_top10').replace('{threshold}', String(eliteThreshold))}
             </h4>
-            <p className={`font-black text-indigo-900 leading-tight ${leaderboard.mostTop10.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostTop10.className}</p>
-            <p className="text-sm font-bold text-indigo-700 mt-1">{leaderboard.mostTop10.top10} {t('comparison.stat_students_top10')}</p>
+            <p className={`font-black text-indigo-900 leading-tight ${leaderboard.mostElite.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostElite.className}</p>
+            <p className="text-sm font-bold text-indigo-700 mt-1">{leaderboard.mostElite.count} {t('comparison.stat_students_top10').replace('{threshold}', String(eliteThreshold))}</p>
           </div>
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-100 p-6 rounded-3xl border border-emerald-200 shadow-sm relative overflow-hidden group">
             <TrendingUp className="w-20 h-20 text-emerald-200/50 absolute -right-4 -bottom-4 rotate-12 group-hover:scale-110 transition-transform" />
             <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Users className="w-3 h-3" /> {t('comparison.stat_strongest_bench')}
+              <Users className="w-3 h-3" /> {t('comparison.stat_strongest_bench').replace('{threshold}', String(benchThreshold))}
             </h4>
-            <p className={`font-black text-emerald-900 leading-tight ${leaderboard.mostTop50.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostTop50.className}</p>
-            <p className="text-sm font-bold text-emerald-700 mt-1">{leaderboard.mostTop50.top50} {t('comparison.stat_students_top50')}</p>
+            <p className={`font-black text-emerald-900 leading-tight ${leaderboard.mostBench.className.length > 8 ? 'text-xl' : 'text-3xl'}`}>{leaderboard.mostBench.className}</p>
+            <p className="text-sm font-bold text-emerald-700 mt-1">{leaderboard.mostBench.count} {t('comparison.stat_students_top50').replace('{threshold}', String(benchThreshold))}</p>
           </div>
         </div>
       )}

@@ -535,13 +535,13 @@ export const getSubjectAverages = (periodData: any[], subjects: string[]) => {
   return subjects.map(sub => ({ name: sub, avg: parseFloat((periodData.reduce((acc, s) => acc + (s.currentScores[sub] || 0), 0) / periodData.length).toFixed(2)) }));
 };
 
-export const getClassSummaries = (periodData: any[], selectedClasses: string[]) => {
+export const getClassSummaries = (periodData: any[], selectedClasses: string[], minT: number, maxT: number) => {
   return selectedClasses.map(cls => {
     const clsStudents = periodData.filter(s => s.class === cls);
     const totalAvg = clsStudents.length > 0 ? clsStudents.reduce((acc, s) => acc + s.currentTotal, 0) / clsStudents.length : 0;
-    const top10Count = clsStudents.filter(s => s.periodSchoolRank <= 10).length;
-    const top50Count = clsStudents.filter(s => s.periodSchoolRank <= 50).length;
-    return { className: cls, count: clsStudents.length, average: parseFloat(totalAvg.toFixed(2)), top10: top10Count, top50: top50Count };
+    const eliteCount = clsStudents.filter(s => s.periodSchoolRank <= minT).length;
+    const benchCount = clsStudents.filter(s => s.periodSchoolRank <= maxT).length;
+    return { className: cls, count: clsStudents.length, average: parseFloat(totalAvg.toFixed(2)), eliteCount, benchCount };
   });
 };
 
@@ -549,21 +549,21 @@ export const getClassLeaderboard = (classSummaries: any[]) => {
   if (classSummaries.length === 0) return null;
   
   const maxAvg = Math.max(...classSummaries.map(s => s.average));
-  const maxTop10 = Math.max(...classSummaries.map(s => s.top10));
-  const maxTop50 = Math.max(...classSummaries.map(s => s.top50));
+  const maxElite = Math.max(...classSummaries.map(s => s.eliteCount));
+  const maxBench = Math.max(...classSummaries.map(s => s.benchCount));
 
   return {
     highestAvg: { 
       className: classSummaries.filter(s => s.average === maxAvg).map(s => s.className).join(', '), 
       average: maxAvg 
     },
-    mostTop10: { 
-      className: classSummaries.filter(s => s.top10 === maxTop10).map(s => s.className).join(', '), 
-      top10: maxTop10 
+    mostElite: { 
+      className: classSummaries.filter(s => s.eliteCount === maxElite).map(s => s.className).join(', '), 
+      count: maxElite 
     },
-    mostTop50: { 
-      className: classSummaries.filter(s => s.top50 === maxTop50).map(s => s.className).join(', '), 
-      top50: maxTop50 
+    mostBench: { 
+      className: classSummaries.filter(s => s.benchCount === maxBench).map(s => s.className).join(', '), 
+      count: maxBench 
     },
   };
 };
