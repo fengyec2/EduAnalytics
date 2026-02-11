@@ -44,8 +44,8 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 no-print">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+    <div className="min-h-screen pb-20 print:pb-0">
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-50 no-print">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -95,7 +95,7 @@ const AppContent: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 mt-8">
+      <main className="max-w-7xl mx-auto px-4 mt-8 print:mt-0 print:px-0 print:max-w-none">
         {view === 'management' ? (
           <DataManager initialData={data} onDataUpdated={handleDataUpdate} />
         ) : view === 'export' ? (
@@ -155,7 +155,7 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-3 px-4 z-40">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-3 px-4 z-40 no-print">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-xs text-gray-400">
           <div className="flex items-center gap-2">
             <p>© 2026 EduAnalytics.</p>

@@ -154,7 +154,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col lg:flex-row gap-8 animate-in fade-in duration-500 print:block">
       {/* Sidebar Controls - Hidden on Print */}
       <div className="w-full lg:w-80 space-y-6 no-print shrink-0">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6 sticky top-24">
@@ -239,7 +239,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
       </div>
 
       {/* Preview Area / Print Area */}
-      <div className="flex-1 bg-white min-h-screen lg:rounded-3xl lg:shadow-xl lg:border lg:border-gray-100 print-shadow-none overflow-hidden print:w-full print:block">
+      <div className="flex-1 bg-white min-h-screen lg:rounded-3xl lg:shadow-xl lg:border lg:border-gray-100 print-shadow-none overflow-hidden print:w-full print:block print:overflow-visible print:min-h-0">
         {/* Report Header */}
         <div className="p-8 border-b border-gray-100 flex justify-between items-end bg-gray-50/30">
           <div>
