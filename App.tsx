@@ -3,14 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { AnalysisState } from './types';
 import Dashboard from './components/Dashboard';
 import DataManager from './components/DataManager';
-import { LayoutDashboard, GraduationCap, Github, Database, ShieldCheck, RefreshCw, Languages } from 'lucide-react';
+import ExportView from './components/ExportView';
+import { LayoutDashboard, GraduationCap, Github, Database, ShieldCheck, RefreshCw, Languages, Printer } from 'lucide-react';
 import { loadState, saveState, clearState } from './services/storageService';
 import { LanguageProvider, useTranslation, Language } from './context/LanguageContext';
 
 const AppContent: React.FC = () => {
   const [data, setData] = useState<AnalysisState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'management'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'management' | 'export'>('dashboard');
   const [persistenceActive, setPersistenceActive] = useState(false);
   const { t, language, setLanguage } = useTranslation();
 
@@ -43,7 +44,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 no-print">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -68,6 +69,13 @@ const AppContent: React.FC = () => {
               <Database className="w-4 h-4" />
               <span className="hidden sm:inline">{t('nav.manager')}</span>
             </button>
+            <button 
+              onClick={() => setView('export')}
+              className={`flex items-center gap-2 text-sm font-medium transition-colors ${view === 'export' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('nav.export')}</span>
+            </button>
 
             <div className="h-4 w-px bg-gray-200" />
 
@@ -90,6 +98,14 @@ const AppContent: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 mt-8">
         {view === 'management' ? (
           <DataManager initialData={data} onDataUpdated={handleDataUpdate} />
+        ) : view === 'export' ? (
+          data ? <ExportView data={data} /> : (
+            <div className="flex flex-col items-center justify-center py-40 gap-4">
+              <div className="bg-blue-50 p-6 rounded-full"><Database className="w-10 h-10 text-blue-400"/></div>
+              <p className="text-gray-500 font-medium">Please import data first to generate reports.</p>
+              <button onClick={() => setView('management')} className="text-blue-600 font-bold hover:underline">Go to Data Manager</button>
+            </div>
+          )
         ) : (
           <>
             {!data && !loading && (
