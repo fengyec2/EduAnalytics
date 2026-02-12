@@ -6,7 +6,8 @@ import {
   Calendar, Printer, Layers, 
   PieChart as PieIcon, BarChart2, CheckSquare, Square, 
   GraduationCap, Crown, Calculator, TrendingUp, Target, 
-  ChevronDown, User, FileText, Users, Award, Zap, Star, Flame, Minus, ShieldAlert
+  ChevronDown, User, FileText, Users, Award, Zap, Star, Flame, Minus, ShieldAlert,
+  Trophy
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -139,15 +140,20 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
     subjectAvgs: AnalysisEngine.getSubjectAverages(periodData, data.subjects)
   }), [periodData, effectiveThresholds, effectiveType, data.subjects]);
 
-  // 2. Comparison Data
+  // 2. Comparison Data (UPDATED to match Dashboard)
   const comparisonData = useMemo(() => {
-    const t1 = data.settings?.comparisonThresholds?.[0] || 50;
-    const t2 = data.settings?.comparisonThresholds?.[1] || 100;
-    const stats = AnalysisEngine.getClassSummaries(periodData, compClasses, t1, t2);
+    const thresholds = data.settings?.comparisonThresholds || [50, 100, 200, 400];
+    const sortedThresholds = [...thresholds].sort((a, b) => a - b);
+    
+    // Determine Elite (Min) and Bench (Max) thresholds for cards
+    const eliteThreshold = sortedThresholds.length > 0 ? sortedThresholds[0] : 50;
+    const benchThreshold = sortedThresholds.length > 0 ? sortedThresholds[sortedThresholds.length - 1] : 100;
+
+    const stats = AnalysisEngine.getClassSummaries(periodData, compClasses, eliteThreshold, benchThreshold);
     const leaderboard = AnalysisEngine.getClassLeaderboard(stats);
     
-    // Gap Data
-    const gapData = data.subjects.map(sub => {
+    // Matrix Data: Subject Averages
+    const subjectMatrix = data.subjects.map(sub => {
       const entry: any = { name: sub };
       compClasses.forEach(cls => {
         const clsStudents = periodData.filter(s => s.class === cls);
@@ -156,8 +162,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
       return entry;
     });
 
-    // Ranking Distribution (Density)
-    const densityData = (data.settings?.comparisonThresholds || [50, 100, 200]).map(bucket => {
+    // Matrix Data: Rank Distribution
+    const rankMatrix = sortedThresholds.map(bucket => {
       const entry: any = { name: `Top ${bucket}` };
       compClasses.forEach(cls => {
         entry[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= bucket).length;
@@ -165,7 +171,22 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
       return entry;
     });
 
-    return { stats, gapData, leaderboard, densityData };
+    // Calc Max for highlighting in table
+    const rowMaxMap: Record<string, number> = {};
+    [...subjectMatrix, ...rankMatrix].forEach(row => {
+        rowMaxMap[row.name] = Math.max(...compClasses.map(c => row[c] || 0));
+    });
+
+    return { 
+        stats, 
+        leaderboard, 
+        subjectMatrix, 
+        rankMatrix, 
+        rowMaxMap, 
+        eliteThreshold, 
+        benchThreshold,
+        gapData: subjectMatrix 
+    };
   }, [periodData, compClasses, data.settings, data.subjects]);
 
   // 3. Kings Data
@@ -589,12 +610,12 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                      <p className="text-xs text-amber-600">{comparisonData.leaderboard.highestAvg.average}</p>
                   </div>
                   <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                     <p className="text-[10px] font-bold text-indigo-700 uppercase">{t('comparison.stat_most_top10').replace('{threshold}', '50')}</p>
+                     <p className="text-[10px] font-bold text-indigo-700 uppercase">{t('comparison.stat_most_top10').replace('{threshold}', String(comparisonData.eliteThreshold))}</p>
                      <p className="text-xl font-black text-indigo-900">{comparisonData.leaderboard.mostElite.className}</p>
                      <p className="text-xs text-indigo-600">{comparisonData.leaderboard.mostElite.count} students</p>
                   </div>
                   <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                     <p className="text-[10px] font-bold text-emerald-700 uppercase">{t('comparison.stat_strongest_bench').replace('{threshold}', '100')}</p>
+                     <p className="text-[10px] font-bold text-emerald-700 uppercase">{t('comparison.stat_strongest_bench').replace('{threshold}', String(comparisonData.benchThreshold))}</p>
                      <p className="text-xl font-black text-emerald-900">{comparisonData.leaderboard.mostBench.className}</p>
                      <p className="text-xs text-emerald-600">{comparisonData.leaderboard.mostBench.count} students</p>
                   </div>
@@ -607,21 +628,73 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                     <table className="w-full text-xs text-left">
                       <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
                         <tr>
-                          <th className="px-4 py-2">{t('common.class')}</th>
-                          <th className="px-4 py-2 text-center">{t('common.participants')}</th>
-                          <th className="px-4 py-2 text-center">{t('common.average')}</th>
-                          <th className="px-4 py-2 text-center">Top {data.settings?.comparisonThresholds?.[0] || 50}</th>
-                          <th className="px-4 py-2 text-center">Top {data.settings?.comparisonThresholds?.[1] || 100}</th>
+                          <th className="px-4 py-2 border-r border-gray-200">{t('comparison.matrix_header')}</th>
+                          {compClasses.map((cls, idx) => (
+                            <th key={cls} className="px-4 py-2 text-center">
+                              {cls}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {comparisonData.stats.map((row, idx) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-2 font-bold text-gray-800">{row.className}</td>
-                            <td className="px-4 py-2 text-center text-gray-600">{row.count}</td>
-                            <td className="px-4 py-2 text-center font-bold text-blue-600">{row.average}</td>
-                            <td className="px-4 py-2 text-center text-gray-600">{row.eliteCount}</td>
-                            <td className="px-4 py-2 text-center text-gray-600">{row.benchCount}</td>
+                        {/* Total Avg Row */}
+                        <tr className="bg-blue-50/20">
+                          <td className="px-4 py-2 font-black text-blue-600 flex items-center gap-2 border-r border-blue-100">
+                            <Trophy className="w-3 h-3" /> {t('comparison.matrix_total_avg')}
+                          </td>
+                          {comparisonData.stats.map((s, idx) => {
+                            const isMax = s.average === comparisonData.leaderboard?.highestAvg.average;
+                            return (
+                              <td key={idx} className={`px-4 py-2 text-center ${isMax ? 'bg-amber-50 font-black text-amber-700' : 'text-gray-600'}`}>
+                                {s.average}
+                              </td>
+                            );
+                          })}
+                        </tr>
+
+                        {/* Subject Averages Header */}
+                        <tr className="bg-gray-50">
+                          <td colSpan={compClasses.length + 1} className="px-4 py-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-200">
+                            {t('comparison.matrix_subject_avg')}
+                          </td>
+                        </tr>
+
+                        {/* Subject Rows */}
+                        {comparisonData.subjectMatrix.map((row, rowIdx) => (
+                          <tr key={rowIdx}>
+                            <td className="px-4 py-2 font-bold text-gray-700 border-r border-gray-100">{row.name}</td>
+                            {compClasses.map((cls, colIdx) => {
+                              const val = row[cls] || 0;
+                              const isMax = val === comparisonData.rowMaxMap[row.name] && val > 0;
+                              return (
+                                <td key={colIdx} className={`px-4 py-2 text-center ${isMax ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-500'}`}>
+                                  {val}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+
+                        {/* Rank Dist Header */}
+                        <tr className="bg-gray-50">
+                          <td colSpan={compClasses.length + 1} className="px-4 py-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-200">
+                            {t('comparison.matrix_rank_dist')}
+                          </td>
+                        </tr>
+
+                        {/* Rank Rows */}
+                        {comparisonData.rankMatrix.map((row, rowIdx) => (
+                          <tr key={rowIdx}>
+                            <td className="px-4 py-2 font-medium text-gray-600 border-r border-gray-100">{row.name} {t('comparison.count')}</td>
+                            {compClasses.map((cls, colIdx) => {
+                              const val = row[cls] || 0;
+                              const isMax = val === comparisonData.rowMaxMap[row.name] && val > 0;
+                              return (
+                                <td key={colIdx} className={`px-4 py-2 text-center ${isMax ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-500'}`}>
+                                  {val}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>
@@ -647,7 +720,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                      <div className="border rounded-xl p-4">
                       <h4 className="text-xs font-bold text-gray-700 mb-2">{t('comparison.chart_density')}</h4>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={comparisonData.densityData}>
+                        <BarChart data={comparisonData.rankMatrix}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="name" fontSize={9} />
                           <YAxis fontSize={9} />
