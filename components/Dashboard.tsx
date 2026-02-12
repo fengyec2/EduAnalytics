@@ -152,10 +152,21 @@ const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState)
     gradeMax: Math.max(...periodData.map(s => s.currentScores[sub] || 0), 0)
   })), [periodData, data.subjects, benchmarkClass]);
 
-  const duelData = useMemo(() => {
+  const { duelData, classFirstStudentName, schoolFirstStudentName } = useMemo(() => {
     const classFirst = periodData.filter(s => s.class === benchmarkClass).sort((a,b) => b.currentTotal - a.currentTotal)[0];
     const schoolFirst = periodData[0];
-    return data.subjects.map(sub => ({ subject: sub, classFirst: classFirst?.currentScores[sub] || 0, schoolFirst: schoolFirst?.currentScores[sub] || 0 }));
+    
+    const dataPoints = data.subjects.map(sub => ({ 
+      subject: sub, 
+      classFirst: classFirst?.currentScores[sub] || 0, 
+      schoolFirst: schoolFirst?.currentScores[sub] || 0 
+    }));
+
+    return {
+      duelData: dataPoints,
+      classFirstStudentName: classFirst?.name || 'N/A',
+      schoolFirstStudentName: schoolFirst?.name || 'N/A'
+    };
   }, [periodData, data.subjects, benchmarkClass]);
 
   return (
@@ -201,7 +212,18 @@ const Dashboard: React.FC<{ data: AnalysisState; onUpdate: (data: AnalysisState)
             setThresholds={setComparisonThresholds}
           />
         )}
-        {activeTab === 'kings' && <EliteBenchmarksView selectedPeriod={selectedPeriod} classes={data.classes} benchmarkClass={benchmarkClass} setBenchmarkClass={setBenchmarkClass} kingsData={kingsData} duelData={duelData} />}
+        {activeTab === 'kings' && (
+          <EliteBenchmarksView 
+            selectedPeriod={selectedPeriod} 
+            classes={data.classes} 
+            benchmarkClass={benchmarkClass} 
+            setBenchmarkClass={setBenchmarkClass} 
+            kingsData={kingsData} 
+            duelData={duelData} 
+            classFirstStudentName={classFirstStudentName}
+            schoolFirstStudentName={schoolFirstStudentName}
+          />
+        )}
         {activeTab === 'parameters' && <ExamParametersView selectedPeriod={selectedPeriod} examParameters={examParameters} colors={colors} totalParticipants={periodData.length} />}
         {activeTab === 'subjectAnalysis' && (
           <SubjectAnalysisView 

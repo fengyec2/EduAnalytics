@@ -190,7 +190,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
   }, [periodData, compClasses, data.settings, data.subjects]);
 
   // 3. Kings Data
-  const kingsData = useMemo(() => {
+  const { kingsData, duelData, classFirstStudentName, schoolFirstStudentName } = useMemo(() => {
     const kings = data.subjects.map(sub => ({
       subject: sub,
       classMax: Math.max(...periodData.filter(s => s.class === benchmarkClass).map(s => s.currentScores[sub] || 0), 0),
@@ -199,13 +199,18 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
     
     const classFirst = periodData.filter(s => s.class === benchmarkClass).sort((a,b) => b.currentTotal - a.currentTotal)[0];
     const schoolFirst = periodData[0];
-    const duelData = data.subjects.map(sub => ({ 
+    const duel = data.subjects.map(sub => ({ 
       subject: sub, 
       classFirst: classFirst?.currentScores[sub] || 0, 
       schoolFirst: schoolFirst?.currentScores[sub] || 0 
     }));
 
-    return { kings, duelData };
+    return { 
+      kingsData: kings, 
+      duelData: duel,
+      classFirstStudentName: classFirst?.name || 'N/A',
+      schoolFirstStudentName: schoolFirst?.name || 'N/A'
+    };
   }, [periodData, data.subjects, benchmarkClass]);
 
   // 4. Parameters Data
@@ -762,26 +767,38 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                 <div className="border rounded-xl p-4">
                   <h4 className="text-xs font-bold text-gray-700 mb-2">{t('kings.chart_kings_title').replace('{className}', benchmarkClass)}</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={kingsData.kings} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                    <BarChart data={kingsData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#f1f5f9" />
                       <XAxis type="number" stroke="#475569" fontSize={9} />
                       <YAxis dataKey="subject" type="category" stroke="#475569" fontSize={9} width={60} />
                       <Legend verticalAlign="top" wrapperStyle={{fontSize: '10px'}} />
                       <Bar dataKey="classMax" name={t('kings.legend_class_top')} fill="#3b82f6" isAnimationActive={false} barSize={12} radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="gradeMax" name={t('kings.legend_grade_top')} fill="#e2e8f0" isAnimationActive={false} barSize={8} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="gradeMax" name={t('kings.legend_grade_top')} fill="#64748b" isAnimationActive={false} barSize={8} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                  <div className="border rounded-xl p-4">
                   <h4 className="text-xs font-bold text-gray-700 mb-2">{t('kings.chart_duel_title')}</h4>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={kingsData.duelData}>
+                    <BarChart data={duelData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="subject" stroke="#475569" fontSize={9} />
                       <YAxis stroke="#475569" fontSize={9} />
                       <Legend verticalAlign="top" wrapperStyle={{fontSize: '10px'}} />
-                      <Bar dataKey="classFirst" name="Class #1" fill="#8b5cf6" isAnimationActive={false} radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="schoolFirst" name="School #1" fill="#ec4899" isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                      <Bar 
+                        dataKey="classFirst" 
+                        name={`${t('kings.legend_class_first').replace('{className}', benchmarkClass)} - ${classFirstStudentName}`} 
+                        fill="#8b5cf6" 
+                        isAnimationActive={false} 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                      <Bar 
+                        dataKey="schoolFirst" 
+                        name={`${t('kings.legend_school_first')} - ${schoolFirstStudentName}`} 
+                        fill="#ec4899" 
+                        isAnimationActive={false} 
+                        radius={[4, 4, 0, 0]} 
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

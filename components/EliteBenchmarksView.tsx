@@ -11,10 +11,12 @@ interface EliteBenchmarksViewProps {
   setBenchmarkClass: (c: string) => void;
   kingsData: any[];
   duelData: any[];
+  classFirstStudentName: string;
+  schoolFirstStudentName: string;
 }
 
 const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({ 
-  selectedPeriod, classes, benchmarkClass, setBenchmarkClass, kingsData, duelData 
+  selectedPeriod, classes, benchmarkClass, setBenchmarkClass, kingsData, duelData, classFirstStudentName, schoolFirstStudentName
 }) => {
   const { t } = useTranslation();
 
@@ -47,7 +49,7 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
               <Legend verticalAlign="top" align="center" iconType="diamond" />
               <Bar dataKey="classMax" name={t('kings.legend_class_top')} fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
-              <Bar dataKey="gradeMax" name={t('kings.legend_grade_top')} fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={10} />
+              <Bar dataKey="gradeMax" name={t('kings.legend_grade_top')} fill="#64748b" radius={[0, 4, 4, 0]} barSize={10} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
@@ -60,8 +62,18 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
               <YAxis stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
               <Legend />
-              <Bar dataKey="classFirst" name={t('kings.legend_class_first').replace('{className}', benchmarkClass)} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="schoolFirst" name={t('kings.legend_school_first')} fill="#ec4899" radius={[4, 4, 0, 0]} />
+              <Bar 
+                dataKey="classFirst" 
+                name={`${t('kings.legend_class_first').replace('{className}', benchmarkClass)} - ${classFirstStudentName}`} 
+                fill="#8b5cf6" 
+                radius={[4, 4, 0, 0]} 
+              />
+              <Bar 
+                dataKey="schoolFirst" 
+                name={`${t('kings.legend_school_first')} - ${schoolFirstStudentName}`} 
+                fill="#ec4899" 
+                radius={[4, 4, 0, 0]} 
+              />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
