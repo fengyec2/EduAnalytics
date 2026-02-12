@@ -809,22 +809,34 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                     <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
                       <tr>
                         <th className="px-4 py-2">{t('common.subject')}</th>
-                        <th className="px-4 py-2 text-center">{t('params.table_mean')}</th>
                         <th className="px-4 py-2 text-center">{t('params.table_max')}</th>
+                        <th className="px-4 py-2 text-center">{t('params.table_mean')}</th>
+                        <th className="px-4 py-2 text-center">{t('params.table_median')}</th>
+                        <th className="px-4 py-2 text-center">{t('params.table_mode')}</th>
                         <th className="px-4 py-2 text-center">{t('params.table_std_dev')}</th>
-                        <th className="px-4 py-2 text-center">{t('params.table_difficulty')}</th>
-                        <th className="px-4 py-2 text-center">{t('params.table_discrimination')}</th>
+                        <th className="px-4 py-2 text-center bg-blue-50/50 text-blue-700">{t('params.table_difficulty')}</th>
+                        <th className="px-4 py-2 text-center bg-indigo-50/50 text-indigo-700">{t('params.table_discrimination')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paramsData.subjectStats.map((s: any, i: number) => (
                         <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           <td className="px-4 py-2 font-bold text-gray-700">{s.subject}</td>
-                          <td className="px-4 py-2 text-center">{s.mean}</td>
-                          <td className="px-4 py-2 text-center">{s.max}</td>
-                          <td className="px-4 py-2 text-center">{s.stdDev}</td>
-                          <td className="px-4 py-2 text-center">{s.difficulty}</td>
-                          <td className="px-4 py-2 text-center">{s.discrimination}</td>
+                          <td className="px-4 py-2 text-center text-gray-600">{s.max}</td>
+                          <td className="px-4 py-2 text-center font-bold text-gray-900">{s.mean}</td>
+                          <td className="px-4 py-2 text-center text-gray-500">{s.median}</td>
+                          <td className="px-4 py-2 text-center text-gray-500">{s.mode}</td>
+                          <td className="px-4 py-2 text-center text-gray-500">{s.stdDev}</td>
+                          <td className="px-4 py-2 text-center bg-blue-50/30">
+                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.difficulty > 0.8 ? 'text-green-700 bg-green-100' : s.difficulty < 0.4 ? 'text-red-700 bg-red-100' : 'text-blue-700 bg-blue-100'}`}>
+                                {s.difficulty}
+                             </span>
+                          </td>
+                          <td className="px-4 py-2 text-center bg-indigo-50/30">
+                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.discrimination > 0.4 ? 'text-green-700 bg-green-100' : s.discrimination < 0.2 ? 'text-red-700 bg-red-100' : 'text-indigo-700 bg-indigo-100'}`}>
+                                {s.discrimination}
+                             </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
