@@ -250,7 +250,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               <ChartContainer title={t('student.rank_trend_title')}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#94a3b8" fontSize={12} /><YAxis reversed domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} /><YAxis reversed domain={['auto', 'auto']} stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, t('common.rank')]} />
                     <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="schoolRank" name={t('common.rank')} stroke="#8b5cf6" strokeWidth={4} dot={{r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} />
                   </LineChart>
@@ -259,7 +259,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               <ChartContainer title={t('student.score_vs_grade')}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#94a3b8" fontSize={12} /><YAxis domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} /><YAxis domain={['auto', 'auto']} stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [value.toFixed(1), '']} />
                     <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="totalScore" name={t('student.ledger_total')} stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} /><Line type="monotone" dataKey="gradeAvgTotal" name={t('student.radar_grade')} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
@@ -287,7 +287,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                   <PolarGrid stroke="#e2e8f0" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#334155', fontSize: 12, fontWeight: 'bold' }} />
                   <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                   <Radar name={t('common.score')} dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={2} />
                   <Radar name={radarBaseline === 'class' ? t('student.radar_class') : t('student.radar_grade')} dataKey="baseline" stroke="#94a3b8" fill="#cbd5e1" fillOpacity={0.3} strokeWidth={1} strokeDasharray="4 4" />
@@ -310,8 +310,8 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={subjectTrendData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
-                  <YAxis reversed domain={['auto', 'auto']} stroke="#94a3b8" fontSize={12} />
+                  <XAxis dataKey="period" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
+                  <YAxis reversed domain={['auto', 'auto']} stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [`第 ${value} 名`, t('common.rank')]} />
                   <Legend verticalAlign="bottom" height={36} />
                   <Line type="stepAfter" dataKey="rank" name={selectedSubjectForTrend + ' ' + t('common.rank')} stroke="#10b981" strokeWidth={3} dot={{r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 7 }} />

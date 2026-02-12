@@ -582,7 +582,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                     <PieChart>
                       <Pie 
                         data={schoolStats.admissionDist} cx="50%" cy="50%" innerRadius={40} outerRadius={70} 
-                        paddingAngle={5} dataKey="value" isAnimationActive={false}
+                        paddingAngle={5} dataKey="value" nameKey="name" isAnimationActive={false}
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
                         {schoolStats.admissionDist.map((entry: any, index: number) => (
@@ -590,6 +590,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                         ))}
                       </Pie>
                       <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{fontSize: '10px'}} />
+                      <Tooltip formatter={(value, name) => [value, name]} contentStyle={{ borderRadius: '8px', fontSize: '10px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -598,8 +599,9 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={schoolStats.subjectAvgs}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" fontSize={9} interval={0} tick={{fill: '#6b7280'}} />
-                      <YAxis fontSize={9} tick={{fill: '#6b7280'}} />
+                      <XAxis dataKey="name" fontSize={9} interval={0} tick={{fill: '#475569'}} />
+                      <YAxis fontSize={9} tick={{fill: '#475569'}} />
+                      <Tooltip formatter={(value) => [value, t('common.average')]} contentStyle={{ borderRadius: '8px', fontSize: '10px' }} />
                       <Bar dataKey="avg" fill="#3b82f6" isAnimationActive={false} label={{ position: 'top', fontSize: 9, fill: '#666' }} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -722,8 +724,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={comparisonData.gapData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" fontSize={9} />
-                          <YAxis fontSize={9} />
+                          <XAxis dataKey="name" fontSize={9} tick={{fill: '#475569'}} />
+                          <YAxis fontSize={9} tick={{fill: '#475569'}} />
                           <Legend verticalAlign="top" align="right" wrapperStyle={{fontSize: '9px'}} />
                           {compClasses.map((cls, idx) => (
                             <Bar key={cls} dataKey={cls} fill={colors[idx % colors.length]} isAnimationActive={false} radius={[2, 2, 0, 0]} />
@@ -736,8 +738,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={comparisonData.rankMatrix}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" fontSize={9} />
-                          <YAxis fontSize={9} />
+                          <XAxis dataKey="name" fontSize={9} tick={{fill: '#475569'}} />
+                          <YAxis fontSize={9} tick={{fill: '#475569'}} />
                           <Legend verticalAlign="top" align="right" wrapperStyle={{fontSize: '9px'}} />
                           {compClasses.map((cls, idx) => (
                             <Bar key={cls} dataKey={cls} fill={colors[idx % colors.length]} isAnimationActive={false} radius={[2, 2, 0, 0]} />
@@ -762,8 +764,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={kingsData.kings} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#f1f5f9" />
-                      <XAxis type="number" stroke="#94a3b8" fontSize={9} />
-                      <YAxis dataKey="subject" type="category" stroke="#94a3b8" fontSize={9} width={60} />
+                      <XAxis type="number" stroke="#475569" fontSize={9} />
+                      <YAxis dataKey="subject" type="category" stroke="#475569" fontSize={9} width={60} />
                       <Legend verticalAlign="top" wrapperStyle={{fontSize: '10px'}} />
                       <Bar dataKey="classMax" name={t('kings.legend_class_top')} fill="#3b82f6" isAnimationActive={false} barSize={12} radius={[0, 4, 4, 0]} />
                       <Bar dataKey="gradeMax" name={t('kings.legend_grade_top')} fill="#e2e8f0" isAnimationActive={false} barSize={8} radius={[0, 4, 4, 0]} />
@@ -775,8 +777,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={kingsData.duelData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="subject" stroke="#94a3b8" fontSize={9} />
-                      <YAxis stroke="#94a3b8" fontSize={9} />
+                      <XAxis dataKey="subject" stroke="#475569" fontSize={9} />
+                      <YAxis stroke="#475569" fontSize={9} />
                       <Legend verticalAlign="top" wrapperStyle={{fontSize: '10px'}} />
                       <Bar dataKey="classFirst" name="Class #1" fill="#8b5cf6" isAnimationActive={false} radius={[4, 4, 0, 0]} />
                       <Bar dataKey="schoolFirst" name="School #1" fill="#ec4899" isAnimationActive={false} radius={[4, 4, 0, 0]} />
@@ -805,8 +807,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" dataKey="difficulty" domain={[0, 1]} fontSize={9} />
-                      <YAxis type="number" dataKey="discrimination" domain={[0, 1]} fontSize={9} />
+                      <XAxis type="number" dataKey="difficulty" domain={[0, 1]} fontSize={9} stroke="#475569" />
+                      <YAxis type="number" dataKey="discrimination" domain={[0, 1]} fontSize={9} stroke="#475569" />
                       <Scatter data={paramsData?.subjectStats} fill="#3b82f6">
                          {paramsData?.subjectStats.map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -878,13 +880,13 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                          <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={dataItem.dist} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                              <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} />
-                              <YAxis stroke="#94a3b8" fontSize={10} />
+                              <XAxis dataKey="name" stroke="#475569" fontSize={10} tick={{fill: '#475569'}} />
+                              <YAxis stroke="#475569" fontSize={10} tick={{fill: '#475569'}} />
                               <Bar dataKey="count" isAnimationActive={false} radius={[4, 4, 0, 0]} barSize={40}>
                                 {dataItem.dist.map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
-                                <LabelList dataKey="count" position="top" style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
+                                <LabelList dataKey="count" position="top" style={{ fill: '#475569', fontSize: '10px', fontWeight: 'bold' }} />
                               </Bar>
                             </BarChart>
                           </ResponsiveContainer>
@@ -1021,7 +1023,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                            <ResponsiveContainer width="100%" height="100%">
                               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={individualReportData.radar}>
                                 <PolarGrid stroke="#e2e8f0" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 8 }} />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#334155', fontSize: 8 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                                 <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
                                 <Radar dataKey="baseline" stroke="#94a3b8" fill="#cbd5e1" fillOpacity={0.3} />
@@ -1035,8 +1037,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                            <ResponsiveContainer width="100%" height="100%">
                               <LineChart data={individualReportData.history}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="period" fontSize={8} />
-                                <YAxis reversed width={30} fontSize={8} domain={['auto', 'auto']} />
+                                <XAxis dataKey="period" fontSize={8} tick={{fill: '#475569'}} />
+                                <YAxis reversed width={30} fontSize={8} domain={['auto', 'auto']} tick={{fill: '#475569'}} />
                                 <Line type="monotone" dataKey="schoolRank" stroke="#8b5cf6" strokeWidth={2} dot={{r: 2}} />
                               </LineChart>
                            </ResponsiveContainer>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, SelectInput } from './SharedComponents';
@@ -41,8 +42,8 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={kingsData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#f1f5f9" />
-              <XAxis type="number" domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
-              <YAxis dataKey="subject" type="category" stroke="#94a3b8" fontSize={12} width={80} />
+              <XAxis type="number" domain={[0, 100]} stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
+              <YAxis dataKey="subject" type="category" stroke="#475569" fontSize={12} width={80} tick={{ fill: '#475569' }} />
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
               <Legend verticalAlign="top" align="center" iconType="diamond" />
               <Bar dataKey="classMax" name={t('kings.legend_class_top')} fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
@@ -55,8 +56,8 @@ const EliteBenchmarksView: React.FC<EliteBenchmarksViewProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={duelData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="subject" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
+              <XAxis dataKey="subject" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
+              <YAxis stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
               <Legend />
               <Bar dataKey="classFirst" name={t('kings.legend_class_first').replace('{className}', benchmarkClass)} fill="#8b5cf6" radius={[4, 4, 0, 0]} />

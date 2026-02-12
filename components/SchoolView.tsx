@@ -148,6 +148,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
                 outerRadius={85} 
                 paddingAngle={5} 
                 dataKey="value"
+                nameKey="name"
               >
                 {admissionDistribution.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
@@ -155,6 +156,7 @@ const SchoolView: React.FC<SchoolViewProps> = ({
               </Pie>
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                formatter={(value, name) => [value, name]}
               />
               <Legend verticalAlign="bottom" />
             </PieChart>
@@ -165,13 +167,14 @@ const SchoolView: React.FC<SchoolViewProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={subjectAvgs}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
+              <XAxis dataKey="name" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
+              <YAxis stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
               <Tooltip 
                 cursor={{ fill: '#f8fafc' }}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
+                formatter={(value, name) => [value, t('common.average')]}
               />
-              <Bar dataKey="avg" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="avg" fill="#3b82f6" radius={[6, 6, 0, 0]} name={t('common.average')} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

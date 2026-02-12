@@ -246,6 +246,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
                   outerRadius={115}
                   paddingAngle={5}
                   dataKey="value"
+                  nameKey="name"
                   animationBegin={0}
                   animationDuration={1500}
                 >
@@ -255,7 +256,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
                 </Pie>
                 <Tooltip 
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [`${value} ${t('comparison.count')}`, '']}
+                  formatter={(value: number, name: string) => [`${value} ${t('comparison.count')}`, name]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -307,6 +308,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
                       outerRadius={70}
                       paddingAngle={4}
                       dataKey="value"
+                      nameKey="name"
                     >
                       {clsData.data.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
@@ -314,7 +316,7 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
                     </Pie>
                     <Tooltip 
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => [`${value} ${t('comparison.count')}`, '']}
+                      formatter={(value: number, name: string) => [`${value} ${t('comparison.count')}`, name]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -422,8 +424,8 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={classComparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" />
-              <YAxis stroke="#94a3b8" fontSize={11} />
+              <XAxis dataKey="name" stroke="#475569" fontSize={11} fontWeight="bold" tick={{ fill: '#475569' }} />
+              <YAxis stroke="#475569" fontSize={11} tick={{ fill: '#475569' }} />
               <Tooltip 
                 cursor={{fill: '#f8fafc'}} 
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} 
@@ -446,8 +448,8 @@ const ClassComparisonView: React.FC<ClassComparisonViewProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={rankingDistributionData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" />
-              <YAxis stroke="#94a3b8" fontSize={11} />
+              <XAxis dataKey="name" stroke="#475569" fontSize={11} fontWeight="bold" tick={{ fill: '#475569' }} />
+              <YAxis stroke="#475569" fontSize={11} tick={{ fill: '#475569' }} />
               <Tooltip 
                 cursor={{fill: '#f8fafc'}} 
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} 

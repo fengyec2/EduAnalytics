@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Sigma, Activity } from 'lucide-react';
@@ -40,8 +41,8 @@ const ExamParametersView: React.FC<ExamParametersViewProps> = ({
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis type="number" dataKey="difficulty" name="Difficulty" domain={[0, 1]} stroke="#94a3b8" fontSize={10} label={{ value: 'Easier ->', position: 'insideBottom', offset: -5 }} />
-                    <YAxis type="number" dataKey="discrimination" name="Discrimination" domain={[0, 1]} stroke="#94a3b8" fontSize={10} label={{ value: 'Better ->', angle: -90, position: 'insideLeft' }} />
+                    <XAxis type="number" dataKey="difficulty" name="Difficulty" domain={[0, 1]} stroke="#475569" fontSize={10} label={{ value: 'Easier ->', position: 'insideBottom', offset: -5, fill: '#475569' }} tick={{ fill: '#475569' }} />
+                    <YAxis type="number" dataKey="discrimination" name="Discrimination" domain={[0, 1]} stroke="#475569" fontSize={10} label={{ value: 'Better ->', angle: -90, position: 'insideLeft', fill: '#475569' }} tick={{ fill: '#475569' }} />
                     <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                     <Scatter name="Subjects" data={examParameters.subjectStats} fill="#3b82f6">
                       {examParameters.subjectStats.map((entry: any, index: number) => (

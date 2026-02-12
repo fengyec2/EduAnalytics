@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Filter, Search, UserX, Info } from 'lucide-react';
@@ -90,8 +91,8 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
-            <YAxis stroke="#94a3b8" fontSize={12} />
+            <XAxis dataKey="name" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
+            <YAxis stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
             <Tooltip 
               cursor={{ fill: '#f8fafc' }}
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
@@ -101,7 +102,7 @@ const SubjectAnalysisView: React.FC<SubjectAnalysisViewProps> = ({
               {distributionData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
-              <LabelList dataKey="count" position="top" style={{ fill: '#64748b', fontSize: '12px', fontWeight: 'bold' }} />
+              <LabelList dataKey="count" position="top" style={{ fill: '#475569', fontSize: '12px', fontWeight: 'bold' }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
