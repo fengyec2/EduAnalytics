@@ -7,14 +7,15 @@ import {
   PieChart as PieIcon, BarChart2, CheckSquare, Square, 
   GraduationCap, Crown, Calculator, TrendingUp, Target, 
   ChevronDown, User, FileText, Users, Award, Zap, Star, Flame, Minus, ShieldAlert,
-  Trophy
+  Trophy, UserX, Info
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import * as AnalysisEngine from '../utils/analysisUtils';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
   CartesianGrid, Legend, ResponsiveContainer, LineChart, Line, Tooltip,
-  ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+  ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  LabelList
 } from 'recharts';
 
 interface ExportViewProps {
@@ -53,7 +54,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
   const [benchmarkClass, setBenchmarkClass] = useState<string>(data.classes[0] || '');
   
   // Subject Config
-  const [exportSubject, setExportSubject] = useState<string>(data.subjects[0] || '');
+  const [exportSubjects, setExportSubjects] = useState<string[]>([data.subjects[0] || '']);
   const [subjectClasses, setSubjectClasses] = useState<string[]>(data.classes);
   
   // Progress Config
@@ -140,12 +141,11 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
     subjectAvgs: AnalysisEngine.getSubjectAverages(periodData, data.subjects)
   }), [periodData, effectiveThresholds, effectiveType, data.subjects]);
 
-  // 2. Comparison Data (UPDATED to match Dashboard)
+  // 2. Comparison Data
   const comparisonData = useMemo(() => {
     const thresholds = data.settings?.comparisonThresholds || [50, 100, 200, 400];
     const sortedThresholds = [...thresholds].sort((a, b) => a - b);
     
-    // Determine Elite (Min) and Bench (Max) thresholds for cards
     const eliteThreshold = sortedThresholds.length > 0 ? sortedThresholds[0] : 50;
     const benchThreshold = sortedThresholds.length > 0 ? sortedThresholds[sortedThresholds.length - 1] : 100;
 
@@ -214,16 +214,18 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
     [periodData, data.subjects]
   );
 
-  // 5. Subject Data
-  const subjectData = useMemo(() => {
-    const dist = AnalysisEngine.getSubjectDistribution(
-      selectedPeriod, exportSubject, subjectClasses, periodData, allSubjectRanks, thresholds, effectiveType, periodData.length
-    );
-    const focusList = AnalysisEngine.getBelowLineStudents(
-      selectedPeriod, exportSubject, subjectClasses, periodData, allSubjectRanks, thresholds['特控'] || 0, effectiveType
-    );
-    return { dist, focusList };
-  }, [selectedPeriod, exportSubject, subjectClasses, periodData, allSubjectRanks, thresholds, effectiveType]);
+  // 5. Subject Data (UPDATED to allow multiple subjects)
+  const subjectAnalysisData = useMemo(() => {
+    return exportSubjects.map(sub => {
+      const dist = AnalysisEngine.getSubjectDistribution(
+        selectedPeriod, sub, subjectClasses, periodData, allSubjectRanks, effectiveThresholds, effectiveType, periodData.length
+      );
+      const focusList = AnalysisEngine.getBelowLineStudents(
+        selectedPeriod, sub, subjectClasses, periodData, allSubjectRanks, effectiveThresholds['特控'] || 0, effectiveType
+      );
+      return { subject: sub, dist, focusList };
+    });
+  }, [selectedPeriod, exportSubjects, subjectClasses, periodData, allSubjectRanks, effectiveThresholds, effectiveType]);
 
   // 6. Progress Data
   const progressData = useMemo(() => {
@@ -388,10 +390,22 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                 {sections.subject && (
                    <div className="p-3 bg-blue-50/30 border-t border-blue-100 space-y-3 animate-in slide-in-from-top-1">
                       <div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">{t('subject.select_subject')}</span>
-                        <SelectInput value={exportSubject} onChange={(e) => setExportSubject(e.target.value)} className="text-xs py-1.5 mt-1">
-                          {data.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                        </SelectInput>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">{t('subject.select_subject')}</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => selectAll(data.subjects, setExportSubjects)} className="text-[10px] text-blue-600 hover:underline">{t('common.select_all')}</button>
+                            <button onClick={() => clearAll(setExportSubjects)} className="text-[10px] text-gray-400 hover:underline">Clear</button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto">
+                          {data.subjects.map(s => (
+                            <FilterChip 
+                              key={s} label={s} active={exportSubjects.includes(s)} 
+                              onClick={() => toggleArrayItem(s, exportSubjects, setExportSubjects)} 
+                              color="indigo" className="text-[10px] px-2 py-0.5"
+                            />
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <div className="flex justify-between items-center mb-1">
@@ -403,7 +417,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
                             <FilterChip 
                               key={cls} label={cls} active={subjectClasses.includes(cls)} 
                               onClick={() => toggleArrayItem(cls, subjectClasses, setSubjectClasses)} 
-                              color="indigo" className="text-[10px] px-2 py-0.5"
+                              color="blue" className="text-[10px] px-2 py-0.5"
                             />
                           ))}
                         </div>
@@ -846,44 +860,67 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
             </section>
           )}
 
-          {/* SECTION 5: SUBJECT VIEW */}
+          {/* SECTION 5: SUBJECT VIEW (Updated for Multi-Select) */}
           {sections.subject && (
-             <section className="print-break-inside-avoid">
-               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-gray-100 pb-2">
-                <BarChart2 className="w-4 h-4 text-indigo-500" /> {t('tab.subject')} - {exportSubject}
-              </h3>
-              <div className="h-60 border rounded-xl p-4 mb-4">
-                 <h4 className="text-xs font-bold text-gray-700 mb-2">
-                    {t('subject.dist_title').replace('{subject}', exportSubject).replace('{period}', selectedPeriod)}
-                 </h4>
-                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={subjectData.dist}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" fontSize={9} />
-                      <YAxis fontSize={9} />
-                      <Bar dataKey="count" isAnimationActive={false} label={{ position: 'top', fontSize: 9, fill: '#666' }}>
-                        {subjectData.dist.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-              </div>
-              
-              {subjectData.focusList.length > 0 && (
-                <div className="border border-rose-100 bg-rose-50/30 rounded-xl p-4">
-                   <h4 className="text-xs font-bold text-rose-700 mb-3">{t('subject.focus_list')}</h4>
-                   <div className="grid grid-cols-4 gap-2">
-                     {subjectData.focusList.slice(0, 24).map((s, idx) => (
-                       <div key={idx} className="bg-white border border-rose-100 rounded px-2 py-1 flex justify-between items-center text-[10px]">
-                         <span className="font-bold text-gray-700">{s.name}</span>
-                         <span className="text-rose-600">#{s.rank}</span>
+             <section className="print-break-inside-avoid space-y-10">
+               {subjectAnalysisData.map((dataItem, idx) => (
+                 <div key={dataItem.subject} className="break-inside-avoid">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-gray-100 pb-2">
+                      <BarChart2 className="w-4 h-4 text-indigo-500" /> {t('tab.subject')} - {dataItem.subject}
+                    </h3>
+                    
+                    {/* Chart Container */}
+                    <div className="bg-white p-4 border rounded-xl mb-6">
+                       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                          {t('subject.dist_title').replace('{subject}', dataItem.subject).replace('{period}', selectedPeriod)}
+                       </h4>
+                       <div className="h-60">
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={dataItem.dist} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} />
+                              <YAxis stroke="#94a3b8" fontSize={10} />
+                              <Bar dataKey="count" isAnimationActive={false} radius={[4, 4, 0, 0]} barSize={40}>
+                                {dataItem.dist.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                                <LabelList dataKey="count" position="top" style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
                        </div>
-                     ))}
-                   </div>
-                   {subjectData.focusList.length > 24 && <p className="text-[9px] text-gray-400 mt-2 italic text-center">... and {subjectData.focusList.length - 24} more</p>}
-                </div>
-              )}
+                    </div>
+
+                    {/* Focus List */}
+                    {dataItem.focusList.length > 0 ? (
+                      <div className="bg-white border border-rose-100 rounded-xl overflow-hidden mb-6">
+                         <div className="px-4 py-3 bg-rose-50/50 border-b border-rose-100 flex items-center gap-2">
+                            <UserX className="w-4 h-4 text-rose-600" />
+                            <h4 className="text-xs font-bold text-rose-700">{t('subject.focus_list')}</h4>
+                         </div>
+                         <div className="p-4">
+                           <div className="grid grid-cols-4 gap-2">
+                             {dataItem.focusList.slice(0, 24).map((s, sIdx) => (
+                               <div key={sIdx} className="bg-white border border-rose-100 rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
+                                 <span className="font-bold text-gray-700">{s.name}</span>
+                                 <div className="flex flex-col items-end">
+                                    <span className="text-[9px] text-gray-400">{s.class}</span>
+                                    <span className="text-rose-600 font-bold">#{s.rank}</span>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                           {dataItem.focusList.length > 24 && <p className="text-[9px] text-gray-400 mt-3 italic text-center">... and {dataItem.focusList.length - 24} more</p>}
+                         </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-6 text-gray-400 italic border border-gray-100 rounded-xl bg-gray-50/30 mb-6">
+                        <Info className="w-6 h-6 mb-2 opacity-20 text-green-500" />
+                        <p className="text-xs">{t('subject.no_below_line')}</p>
+                      </div>
+                    )}
+                 </div>
+               ))}
              </section>
           )}
 
