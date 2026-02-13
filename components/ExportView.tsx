@@ -117,6 +117,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
       <ReportShell
         title={exportTab === 'overall' ? t('export.tab_overall') : exportTab === 'personal' ? t('export.tab_personal') : t('export.tab_tables')}
         subtitle={selectedPeriod}
+        hideHeaderOnPrint={exportTab === 'personal'}
       >
         {exportTab === 'overall' && (
           <OverallReport 

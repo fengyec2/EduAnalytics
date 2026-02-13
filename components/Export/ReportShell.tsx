@@ -7,14 +7,15 @@ interface ReportShellProps {
   title: string;
   subtitle: string;
   children: ReactNode;
+  hideHeaderOnPrint?: boolean;
 }
 
-const ReportShell: React.FC<ReportShellProps> = ({ title, subtitle, children }) => {
+const ReportShell: React.FC<ReportShellProps> = ({ title, subtitle, children, hideHeaderOnPrint = false }) => {
   const { t } = useTranslation();
 
   return (
     <div className="flex-1 bg-white min-h-screen lg:rounded-3xl lg:shadow-xl lg:border lg:border-gray-100 print-shadow-none overflow-hidden print:w-full print:block print:overflow-visible print:min-h-0">
-      <div className="p-8 border-b border-gray-100 flex justify-between items-end bg-gray-50/30">
+      <div className={`p-8 border-b border-gray-100 flex justify-between items-end bg-gray-50/30 ${hideHeaderOnPrint ? 'print:hidden' : ''}`}>
         <div>
           <div className="flex items-center gap-2 text-blue-600 mb-2">
             <GraduationCap className="w-6 h-6" />
@@ -31,7 +32,7 @@ const ReportShell: React.FC<ReportShellProps> = ({ title, subtitle, children }) 
         </div>
       </div>
 
-      <div className="p-8">
+      <div className={`p-8 ${hideHeaderOnPrint ? 'print:p-0' : ''}`}>
         {children}
       </div>
 
