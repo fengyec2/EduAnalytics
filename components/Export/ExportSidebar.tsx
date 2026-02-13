@@ -3,7 +3,7 @@ import React from 'react';
 import { 
   Calendar, Printer, Layers, 
   CheckSquare, Square, ChevronDown, 
-  LayoutTemplate, Table as TableIcon, Trophy 
+  LayoutTemplate, Table as TableIcon, Trophy, Download, Settings2 
 } from 'lucide-react';
 import { SelectInput, FilterChip, SearchInput } from '../SharedComponents';
 import { AnalysisState } from '../../types';
@@ -41,12 +41,38 @@ interface ExportSidebarProps {
   setSelectedStudentIds: (v: string[] | ((prev: string[]) => string[])) => void;
   studentSearch: string;
   setStudentSearch: (v: string) => void;
-  tableOptions: {
-    rawScore: boolean;
-    ranks: boolean;
-    stats: boolean;
+  // New props for Excel Config
+  excelConfig: {
+    overview: boolean;
+    school: boolean;
+    comparison: boolean;
+    kings: boolean;
+    subjects: boolean;
+    progress: boolean;
+    raw: boolean;
   };
-  setTableOptions: (v: React.SetStateAction<{ rawScore: boolean; ranks: boolean; stats: boolean; }>) => void;
+  setExcelConfig: React.Dispatch<React.SetStateAction<{
+    overview: boolean;
+    school: boolean;
+    comparison: boolean;
+    kings: boolean;
+    subjects: boolean;
+    progress: boolean;
+    raw: boolean;
+  }>>;
+  progressParams: {
+    coeffA: string;
+    coeffB: string;
+    streakStart: string;
+    streakEnd: string;
+  };
+  setProgressParams: React.Dispatch<React.SetStateAction<{
+    coeffA: string;
+    coeffB: string;
+    streakStart: string;
+    streakEnd: string;
+  }>>;
+  handleExcelExport: () => void;
   handlePrint: () => void;
 }
 
@@ -57,13 +83,17 @@ const ExportSidebar: React.FC<ExportSidebarProps> = ({
   exportSubjects, setExportSubjects, subjectClasses, setSubjectClasses,
   indivClass, setIndivClass,
   selectedStudentIds, setSelectedStudentIds, studentSearch, setStudentSearch,
-  tableOptions, setTableOptions, handlePrint
+  excelConfig, setExcelConfig, progressParams, setProgressParams, handleExcelExport, handlePrint
 }) => {
   const { t } = useTranslation();
 
   const toggleArrayItem = (item: string, current: string[], setter: (val: string[]) => void) => {
     if (current.includes(item)) setter(current.filter(i => i !== item));
     else setter([...current, item]);
+  };
+
+  const toggleExcelModule = (key: keyof typeof excelConfig) => {
+    setExcelConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -194,29 +224,67 @@ const ExportSidebar: React.FC<ExportSidebarProps> = ({
             {exportTab === 'tables' && (
               <div className="space-y-2">
                 {[
-                  { id: 'rawScore', label: t('export.table_raw_score'), icon: LayoutTemplate },
-                  { id: 'ranks', label: t('export.table_ranks'), icon: Trophy },
-                  { id: 'stats', label: t('export.table_stats'), icon: TableIcon }
-                ].map(opt => (
-                  <button 
-                    key={opt.id} 
-                    onClick={() => setTableOptions(prev => ({ ...prev, [opt.id]: !prev[opt.id as keyof typeof tableOptions] }))}
-                    className={`flex items-center justify-between w-full p-3 rounded-xl border transition-all ${tableOptions[opt.id as keyof typeof tableOptions] ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-white border-gray-100 text-gray-600'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <opt.icon className="w-4 h-4" />
-                      <span className="text-xs font-bold">{opt.label}</span>
-                    </div>
-                    {tableOptions[opt.id as keyof typeof tableOptions] && <CheckSquare className="w-4 h-4 text-blue-600" />}
-                  </button>
+                  { id: 'overview', label: t('export.section_overview') },
+                  { id: 'school', label: t('tab.school') },
+                  { id: 'comparison', label: t('tab.comparison') },
+                  { id: 'kings', label: t('tab.kings') },
+                  { id: 'subjects', label: t('tab.subject') },
+                  { id: 'progress', label: t('tab.progress') },
+                  { id: 'raw', label: t('export.table_raw_score') }
+                ].map((opt) => (
+                  <React.Fragment key={opt.id}>
+                    <button 
+                      onClick={() => toggleExcelModule(opt.id as keyof typeof excelConfig)}
+                      className={`flex items-center justify-between w-full p-3 rounded-xl border transition-all ${excelConfig[opt.id as keyof typeof excelConfig] ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-white border-gray-100 text-gray-600'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckSquare className={`w-4 h-4 ${excelConfig[opt.id as keyof typeof excelConfig] ? 'text-blue-600' : 'text-gray-300'}`} />
+                        <span className="text-xs font-bold">{opt.label}</span>
+                      </div>
+                      {opt.id === 'progress' && excelConfig.progress && <Settings2 className="w-4 h-4 text-blue-400" />}
+                    </button>
+                    {/* Progress Specific Config */}
+                    {opt.id === 'progress' && excelConfig.progress && (
+                      <div className="p-4 bg-gray-50/80 rounded-xl border border-gray-200 space-y-4 animate-in slide-in-from-top-2">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Coefficient: Exam A vs B</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <SelectInput value={progressParams.coeffA} onChange={(e) => setProgressParams(prev => ({...prev, coeffA: e.target.value}))} className="text-xs py-1.5 px-2">
+                              {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
+                            </SelectInput>
+                            <SelectInput value={progressParams.coeffB} onChange={(e) => setProgressParams(prev => ({...prev, coeffB: e.target.value}))} className="text-xs py-1.5 px-2">
+                              {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
+                            </SelectInput>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Streak: Start vs End</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <SelectInput value={progressParams.streakStart} onChange={(e) => setProgressParams(prev => ({...prev, streakStart: e.target.value}))} className="text-xs py-1.5 px-2">
+                              {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
+                            </SelectInput>
+                            <SelectInput value={progressParams.streakEnd} onChange={(e) => setProgressParams(prev => ({...prev, streakEnd: e.target.value}))} className="text-xs py-1.5 px-2">
+                              {allPeriods.map(p => <option key={p} value={p}>{p}</option>)}
+                            </SelectInput>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             )}
         </div>
 
-        <button onClick={handlePrint} className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all shadow-lg">
-          <Printer className="w-4 h-4" /> {t('export.btn_print')}
-        </button>
+        {exportTab === 'tables' ? (
+          <button onClick={handleExcelExport} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100">
+            <Download className="w-4 h-4" /> {t('export.btn_excel')}
+          </button>
+        ) : (
+          <button onClick={handlePrint} className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all shadow-lg">
+            <Printer className="w-4 h-4" /> {t('export.btn_print')}
+          </button>
+        )}
       </div>
     </div>
   );
