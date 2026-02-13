@@ -21,6 +21,7 @@ export const useExportData = ({
   subjectClasses
 }: UseExportDataProps) => {
   const totalStudents = data.students.length;
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   const allHistoricalRanks = useMemo(() => AnalysisEngine.calculateHistoricalRanks(data.students), [data.students]);
   const allSubjectRanks = useMemo(() => AnalysisEngine.calculateSubjectHistoricalRanks(data.students, data.subjects), [data.students, data.subjects]);
@@ -60,12 +61,15 @@ export const useExportData = ({
 
   const comparisonData = useMemo(() => {
     const thresholds = data.settings?.comparisonThresholds || [50, 100, 200, 400];
-    const sorted = [...thresholds].sort((a, b) => a - b);
-    const elite = sorted[0] || 50;
-    const bench = sorted[sorted.length - 1] || 100;
+    const sortedThresholds = [...thresholds].sort((a, b) => a - b);
+    const elite = sortedThresholds[0] || 50;
+    const bench = sortedThresholds[sortedThresholds.length - 1] || 100;
+    
+    // Core Stats & Leaderboard
     const stats = AnalysisEngine.getClassSummaries(periodData, compClasses, elite, bench);
     const leaderboard = AnalysisEngine.getClassLeaderboard(stats);
     
+    // Matrices
     const subjectMatrix = data.subjects.map(sub => {
       const entry: any = { name: sub };
       compClasses.forEach(cls => {
@@ -75,7 +79,7 @@ export const useExportData = ({
       return entry;
     });
 
-    const rankMatrix = sorted.map(bucket => {
+    const rankMatrix = sortedThresholds.map(bucket => {
       const entry: any = { name: `Top ${bucket}` };
       compClasses.forEach(cls => {
         entry[cls] = periodData.filter(s => s.class === cls && s.periodSchoolRank <= bucket).length;
@@ -86,8 +90,51 @@ export const useExportData = ({
     const rowMaxMap: Record<string, number> = {};
     [...subjectMatrix, ...rankMatrix].forEach(row => rowMaxMap[row.name] = Math.max(...compClasses.map(c => row[c] || 0)));
 
-    return { stats, leaderboard, subjectMatrix, rankMatrix, rowMaxMap, eliteThreshold: elite, benchThreshold: bench };
-  }, [periodData, compClasses, data.settings, data.subjects]);
+    // New Visuals Data
+    // 1. Ownership Pie
+    const ownershipThreshold = elite;
+    const ownershipData = compClasses.map((cls, idx) => {
+      const count = periodData.filter(s => s.class === cls && s.periodSchoolRank <= ownershipThreshold).length;
+      return {
+        name: cls,
+        value: count,
+        color: colors[idx % colors.length]
+      };
+    }).filter(d => d.value > 0);
+    
+    const totalInSelected = ownershipData.reduce((acc, r) => acc + r.value, 0);
+    const otherCount = ownershipThreshold - totalInSelected;
+    if (otherCount > 0) {
+        ownershipData.push({ name: 'Others', value: otherCount, color: '#e2e8f0' });
+    }
+
+    // 2. Population Dist
+    const baseColors = ['#be123c', '#1e40af', '#0369a1', '#0d9488', '#10b981', '#8b5cf6', '#d946ef'];
+    const tierColors = sortedThresholds.map((_, i) => baseColors[i % baseColors.length]);
+    
+    const populationDistData = compClasses.map(cls => {
+        const clsStudents = periodData.filter(s => s.class === cls);
+        const totalCount = clsStudents.length;
+        if (totalCount === 0) return { className: cls, data: [] };
+
+        const chartData = sortedThresholds.map((limit, idx) => {
+            const prevLimit = idx === 0 ? 0 : sortedThresholds[idx - 1];
+            const count = clsStudents.filter(s => s.periodSchoolRank > prevLimit && s.periodSchoolRank <= limit).length;
+            return { name: `Top ${limit}`, value: count, color: tierColors[idx] };
+        });
+        const handledCount = chartData.reduce((acc, d) => acc + d.value, 0);
+        chartData.push({ name: 'Others', value: Math.max(0, totalCount - handledCount), color: '#94a3b8' });
+        
+        return { className: cls, data: chartData.filter(d => d.value > 0) };
+    });
+
+    return { 
+        stats, leaderboard, subjectMatrix, rankMatrix, rowMaxMap, 
+        eliteThreshold: elite, benchThreshold: bench,
+        ownershipData, ownershipThreshold, populationDistData,
+        sortedThresholds, colors 
+    };
+  }, [periodData, compClasses, data.settings, data.subjects, colors]);
 
   const { kingsData, duelData, classFirstStudentName, schoolFirstStudentName } = useMemo(() => {
     const kings = data.subjects.map(sub => ({

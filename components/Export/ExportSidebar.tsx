@@ -33,6 +33,8 @@ interface ExportSidebarProps {
   setBenchmarkClass: (v: string) => void;
   exportSubjects: string[];
   setExportSubjects: (v: string[]) => void;
+  subjectClasses: string[];
+  setSubjectClasses: (v: string[]) => void;
   indivClass: string;
   setIndivClass: (v: string) => void;
   selectedStudentIds: string[];
@@ -52,7 +54,8 @@ const ExportSidebar: React.FC<ExportSidebarProps> = ({
   data, allPeriods, selectedPeriod, setSelectedPeriod,
   exportTab, setExportTab, sections, toggleSection,
   compClasses, setCompClasses, benchmarkClass, setBenchmarkClass,
-  exportSubjects, setExportSubjects, indivClass, setIndivClass,
+  exportSubjects, setExportSubjects, subjectClasses, setSubjectClasses,
+  indivClass, setIndivClass,
   selectedStudentIds, setSelectedStudentIds, studentSearch, setStudentSearch,
   tableOptions, setTableOptions, handlePrint
 }) => {
@@ -137,8 +140,15 @@ const ExportSidebar: React.FC<ExportSidebarProps> = ({
                   </button>
                   {sections.subject && (
                      <div className="p-3 bg-blue-50/30 border-t border-blue-100 space-y-3">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">{t('common.subject')}</label>
                         <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto">
                           {data.subjects.map(s => <FilterChip key={s} label={s} active={exportSubjects.includes(s)} onClick={() => toggleArrayItem(s, exportSubjects, setExportSubjects)} color="indigo" className="text-[10px] px-2 py-0.5"/>)}
+                        </div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mt-2 block">{t('common.class')}</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto">
+                          {data.classes.map(cls => (
+                            <FilterChip key={cls} label={cls} active={subjectClasses.includes(cls)} onClick={() => toggleArrayItem(cls, subjectClasses, setSubjectClasses)} color="blue" className="text-[10px] px-2 py-0.5"/>
+                          ))}
                         </div>
                      </div>
                   )}

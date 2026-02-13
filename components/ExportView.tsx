@@ -36,7 +36,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
   const [compClasses, setCompClasses] = useState<string[]>(data.classes);
   const [benchmarkClass, setBenchmarkClass] = useState<string>(data.classes[0] || '');
   const [exportSubjects, setExportSubjects] = useState<string[]>([data.subjects[0] || '']);
-  const [subjectClasses] = useState<string[]>(data.classes); // Static for now, can be made dynamic if needed
+  const [subjectClasses, setSubjectClasses] = useState<string[]>(data.classes);
 
   // --- PERSONAL REPORT STATES ---
   const [indivClass, setIndivClass] = useState<string>(data.classes[0] || '');
@@ -100,6 +100,8 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
         setBenchmarkClass={setBenchmarkClass}
         exportSubjects={exportSubjects}
         setExportSubjects={setExportSubjects}
+        subjectClasses={subjectClasses}
+        setSubjectClasses={setSubjectClasses}
         indivClass={indivClass}
         setIndivClass={setIndivClass}
         selectedStudentIds={selectedStudentIds}

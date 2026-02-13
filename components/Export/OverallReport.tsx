@@ -2,11 +2,12 @@
 import React from 'react';
 import { 
   FileText, Users, Layers, Award, TrendingUp, 
-  PieChart as PieIcon, Crown, Calculator, BarChart2 
+  PieChart as PieIcon, Crown, Calculator, BarChart2,
+  Trophy, Star, Zap, Target
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
-  CartesianGrid, Legend, ResponsiveContainer, LabelList 
+  CartesianGrid, Legend, ResponsiveContainer, LabelList, Tooltip
 } from 'recharts';
 import { StatCard } from '../SharedComponents';
 import { useTranslation } from '../../context/LanguageContext';
@@ -31,6 +32,12 @@ interface OverallReportProps {
     subjectMatrix: any[];
     rankMatrix: any[];
     rowMaxMap: Record<string, number>;
+    eliteThreshold: number;
+    benchThreshold: number;
+    ownershipData: any[];
+    ownershipThreshold: number;
+    populationDistData: any[];
+    colors: string[];
   };
   kingsData: any[];
   duelData: any[];
@@ -109,10 +116,75 @@ const OverallReport: React.FC<OverallReportProps> = ({
       )}
 
       {sections.comparison && (
-        <section className="print-break-inside-avoid">
+        <section className="print-break-inside-avoid space-y-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-gray-100 pb-2">
             <Layers className="w-4 h-4 text-indigo-500" /> {t('tab.comparison')}
           </h3>
+
+          {/* 1. Leaderboard Cards */}
+          {comparisonData.leaderboard && (
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 relative overflow-hidden">
+                <Trophy className="w-8 h-8 text-amber-200 absolute right-2 bottom-2" />
+                <h4 className="text-[10px] font-black text-amber-700 uppercase">{t('comparison.stat_highest_avg')}</h4>
+                <p className="text-xl font-black text-amber-900">{comparisonData.leaderboard.highestAvg.className}</p>
+                <p className="text-xs font-bold text-amber-600">{comparisonData.leaderboard.highestAvg.average} {t('comparison.stat_points_avg')}</p>
+              </div>
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden">
+                <Star className="w-8 h-8 text-indigo-200 absolute right-2 bottom-2" />
+                <h4 className="text-[10px] font-black text-indigo-700 uppercase">{t('comparison.stat_most_top10').replace('{threshold}', String(comparisonData.eliteThreshold))}</h4>
+                <p className="text-xl font-black text-indigo-900">{comparisonData.leaderboard.mostElite.className}</p>
+                <p className="text-xs font-bold text-indigo-600">{comparisonData.leaderboard.mostElite.count} {t('comparison.stat_students_top10').replace('{threshold}', '')}</p>
+              </div>
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 relative overflow-hidden">
+                <Users className="w-8 h-8 text-emerald-200 absolute right-2 bottom-2" />
+                <h4 className="text-[10px] font-black text-emerald-700 uppercase">{t('comparison.stat_strongest_bench').replace('{threshold}', String(comparisonData.benchThreshold))}</h4>
+                <p className="text-xl font-black text-emerald-900">{comparisonData.leaderboard.mostBench.className}</p>
+                <p className="text-xs font-bold text-emerald-600">{comparisonData.leaderboard.mostBench.count} {t('comparison.stat_students_top50').replace('{threshold}', '')}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Ownership & Population Dist */}
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            <div className="border rounded-xl p-4">
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                <Target className="w-3 h-3 text-indigo-500" /> {t('comparison.ownership_title').replace('{threshold}', String(comparisonData.ownershipThreshold))}
+              </h4>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={comparisonData.ownershipData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value" nameKey="name" isAnimationActive={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {comparisonData.ownershipData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                    </Pie>
+                    <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{fontSize: '9px'}} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            <div className="border rounded-xl p-4">
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                <PieIcon className="w-3 h-3 text-indigo-500" /> {t('comparison.chart_population_dist')}
+              </h4>
+              <div className="grid grid-cols-2 gap-2 h-48 overflow-hidden">
+                 {comparisonData.populationDistData.slice(0, 4).map((clsData, idx) => (
+                    <div key={idx} className="relative">
+                      <p className="absolute top-0 left-0 text-[9px] font-black text-gray-500">{clsData.className}</p>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={clsData.data} cx="50%" cy="60%" innerRadius={20} outerRadius={35} paddingAngle={0} dataKey="value" nameKey="name" isAnimationActive={false}>
+                            {clsData.data.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Matrix */}
           <div className="border rounded-xl overflow-hidden mb-6">
             <table className="w-full text-xs text-left">
               <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
@@ -135,6 +207,36 @@ const OverallReport: React.FC<OverallReportProps> = ({
               </tbody>
             </table>
           </div>
+
+          {/* 4. Gap & Density Charts */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="h-48 border rounded-xl p-2 relative">
+               <p className="absolute top-2 left-3 text-[9px] font-bold text-gray-400 uppercase">{t('comparison.chart_gap')}</p>
+               <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={comparisonData.subjectMatrix} margin={{ top: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" stroke="#475569" fontSize={9} />
+                  <YAxis stroke="#475569" fontSize={9} />
+                  {compClasses.map((cls, idx) => (
+                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="h-48 border rounded-xl p-2 relative">
+               <p className="absolute top-2 left-3 text-[9px] font-bold text-gray-400 uppercase">{t('comparison.chart_density')}</p>
+               <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={comparisonData.rankMatrix} margin={{ top: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" stroke="#475569" fontSize={9} />
+                  <YAxis stroke="#475569" fontSize={9} />
+                  {compClasses.map((cls, idx) => (
+                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </section>
       )}
 
@@ -151,8 +253,12 @@ const OverallReport: React.FC<OverallReportProps> = ({
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#f1f5f9" />
                   <XAxis type="number" stroke="#475569" fontSize={9} />
                   <YAxis dataKey="subject" type="category" stroke="#475569" fontSize={9} width={60} />
-                  <Bar dataKey="classMax" fill="#3b82f6" isAnimationActive={false} barSize={12} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="gradeMax" fill="#64748b" isAnimationActive={false} barSize={8} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="classMax" fill="#3b82f6" isAnimationActive={false} barSize={12} radius={[0, 4, 4, 0]}>
+                     <LabelList dataKey="classMax" position="right" fontSize={9} fill="#3b82f6" />
+                  </Bar>
+                  <Bar dataKey="gradeMax" fill="#64748b" isAnimationActive={false} barSize={8} radius={[0, 4, 4, 0]}>
+                     <LabelList dataKey="gradeMax" position="right" fontSize={9} fill="#64748b" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -163,8 +269,12 @@ const OverallReport: React.FC<OverallReportProps> = ({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="subject" stroke="#475569" fontSize={9} />
                   <YAxis stroke="#475569" fontSize={9} />
-                  <Bar dataKey="classFirst" name={`${classFirstStudentName}`} fill="#8b5cf6" isAnimationActive={false} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="schoolFirst" name={`${schoolFirstStudentName}`} fill="#ec4899" isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="classFirst" name={`${classFirstStudentName}`} fill="#8b5cf6" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+                     <LabelList dataKey="classFirst" position="top" fontSize={9} fill="#8b5cf6" />
+                  </Bar>
+                  <Bar dataKey="schoolFirst" name={`${schoolFirstStudentName}`} fill="#ec4899" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+                     <LabelList dataKey="schoolFirst" position="top" fontSize={9} fill="#ec4899" />
+                  </Bar>
                   <Legend verticalAlign="top" wrapperStyle={{fontSize: '9px'}}/>
                 </BarChart>
               </ResponsiveContainer>
