@@ -3,7 +3,7 @@ import React from 'react';
 import { 
   FileText, Users, Layers, Award, TrendingUp, 
   PieChart as PieIcon, Crown, Calculator, BarChart2,
-  Trophy, Star, Zap, Target
+  Trophy, Star, Zap, Target, UserX
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
@@ -375,10 +375,11 @@ const OverallReport: React.FC<OverallReportProps> = ({
       {sections.subject && (
         <section className="print-break-inside-avoid space-y-6">
           {subjectAnalysisData.map((dataItem) => (
-            <div key={dataItem.subject} className="break-inside-avoid">
+            <div key={dataItem.subject} className="break-inside-avoid border-b border-gray-100 pb-8 last:border-0">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
                 <BarChart2 className="w-4 h-4 text-indigo-500" /> {t('tab.subject')} - {dataItem.subject}
               </h3>
+              
               <div className="bg-white p-4 border rounded-xl h-40 mb-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dataItem.dist}>
@@ -390,6 +391,47 @@ const OverallReport: React.FC<OverallReportProps> = ({
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+              </div>
+
+              {/* Focus List */}
+              <div className="bg-rose-50/30 border border-rose-100 rounded-xl overflow-hidden break-inside-avoid">
+                <div className="px-4 py-3 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserX className="w-4 h-4 text-rose-500" />
+                    <span className="text-xs font-bold text-rose-700 uppercase tracking-widest">{t('subject.focus_list')}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-rose-400">
+                    {dataItem.focusList.length} {t('common.participants')}
+                  </span>
+                </div>
+                
+                <div className="p-4">
+                  {dataItem.focusList.length > 0 ? (
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                      {dataItem.focusList.slice(0, 50).map((s: any, idx: number) => (
+                        <div 
+                          key={idx}
+                          className="bg-white border border-rose-100 rounded-lg p-2 flex flex-col gap-0.5"
+                        >
+                          <span className="text-xs font-bold text-gray-800 truncate">{s.name}</span>
+                          <div className="flex items-center justify-between text-[9px]">
+                            <span className="text-gray-400">{s.class}</span>
+                            <span className="text-rose-600 font-bold">#{s.rank}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {dataItem.focusList.length > 50 && (
+                        <div className="flex items-center justify-center text-[10px] text-gray-400 italic">
+                          + {dataItem.focusList.length - 50} more
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-xs text-gray-400 italic">
+                      {t('subject.no_below_line')}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
