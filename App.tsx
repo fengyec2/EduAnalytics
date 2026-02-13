@@ -4,7 +4,7 @@ import { AnalysisState } from './types';
 import Dashboard from './components/Dashboard';
 import DataManager from './components/DataManager';
 import ExportView from './components/ExportView';
-import { LayoutDashboard, GraduationCap, Github, Database, ShieldCheck, RefreshCw, Languages, Printer } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Database, ShieldCheck, RefreshCw, Languages, Printer } from 'lucide-react';
 import { loadState, saveState, clearState } from './services/storageService';
 import { LanguageProvider, useTranslation, Language } from './context/LanguageContext';
 
@@ -87,10 +87,6 @@ const AppContent: React.FC = () => {
               <span className="uppercase">{language}</span>
             </button>
             
-            <button className="hidden sm:flex bg-gray-900 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-all items-center gap-2">
-              <Github className="w-4 h-4" />
-              {t('nav.source')}
-            </button>
           </nav>
         </div>
       </header>
