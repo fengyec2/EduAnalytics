@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, Target, Zap, ShieldAlert, Minus } from 'lucide-react';
@@ -260,7 +259,10 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="period" stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} /><YAxis domain={['auto', 'auto']} stroke="#475569" fontSize={12} tick={{ fill: '#475569' }} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value: number) => [value.toFixed(1), '']} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
+                      formatter={(value: number, name: string) => [value.toFixed(1), name]} 
+                    />
                     <Legend verticalAlign="top" height={36}/><Line type="monotone" dataKey="totalScore" name={t('student.ledger_total')} stroke="#3b82f6" strokeWidth={4} dot={{r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff'}} activeDot={{ r: 8 }} /><Line type="monotone" dataKey="gradeAvgTotal" name={t('student.radar_grade')} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
