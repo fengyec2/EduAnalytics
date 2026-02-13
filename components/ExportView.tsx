@@ -54,6 +54,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
   const {
     allHistoricalRanks,
     allSubjectRanks,
+    allClassHistoricalRanks,
     periodData,
     overviewStats,
     schoolStats,
@@ -142,6 +143,7 @@ const ExportView: React.FC<ExportViewProps> = ({ data }) => {
               selectedStudentIds={selectedStudentIds}
               selectedPeriod={selectedPeriod}
               allHistoricalRanks={allHistoricalRanks}
+              allClassHistoricalRanks={allClassHistoricalRanks}
               allSubjectRanks={allSubjectRanks}
               periodData={periodData}
               subjects={data.subjects}
