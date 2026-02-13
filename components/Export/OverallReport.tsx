@@ -134,13 +134,13 @@ const OverallReport: React.FC<OverallReportProps> = ({
                 <Star className="w-8 h-8 text-indigo-200 absolute right-2 bottom-2" />
                 <h4 className="text-[10px] font-black text-indigo-700 uppercase">{t('comparison.stat_most_top10').replace('{threshold}', String(comparisonData.eliteThreshold))}</h4>
                 <p className="text-xl font-black text-indigo-900">{comparisonData.leaderboard.mostElite.className}</p>
-                <p className="text-xs font-bold text-indigo-600">{comparisonData.leaderboard.mostElite.count} {t('comparison.stat_students_top10').replace('{threshold}', '')}</p>
+                <p className="text-xs font-bold text-indigo-600">{comparisonData.leaderboard.mostElite.count} {t('comparison.stat_students_top10').replace('{threshold}', String(comparisonData.eliteThreshold))}</p>
               </div>
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 relative overflow-hidden">
                 <Users className="w-8 h-8 text-emerald-200 absolute right-2 bottom-2" />
                 <h4 className="text-[10px] font-black text-emerald-700 uppercase">{t('comparison.stat_strongest_bench').replace('{threshold}', String(comparisonData.benchThreshold))}</h4>
                 <p className="text-xl font-black text-emerald-900">{comparisonData.leaderboard.mostBench.className}</p>
-                <p className="text-xs font-bold text-emerald-600">{comparisonData.leaderboard.mostBench.count} {t('comparison.stat_students_top50').replace('{threshold}', '')}</p>
+                <p className="text-xs font-bold text-emerald-600">{comparisonData.leaderboard.mostBench.count} {t('comparison.stat_students_top50').replace('{threshold}', String(comparisonData.benchThreshold))}</p>
               </div>
             </div>
           )}
@@ -173,7 +173,17 @@ const OverallReport: React.FC<OverallReportProps> = ({
                       <p className="absolute top-0 left-0 text-[9px] font-black text-gray-500">{clsData.className}</p>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={clsData.data} cx="50%" cy="60%" innerRadius={20} outerRadius={35} paddingAngle={0} dataKey="value" nameKey="name" isAnimationActive={false}>
+                          <Pie 
+                            data={clsData.data} 
+                            cx="50%" cy="60%" 
+                            innerRadius={20} outerRadius={35} 
+                            paddingAngle={0} 
+                            dataKey="value" 
+                            nameKey="name" 
+                            isAnimationActive={false}
+                            labelLine={false}
+                            label={({ value }) => value > 0 ? value : ''}
+                          >
                             {clsData.data.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                           </Pie>
                         </PieChart>
@@ -184,24 +194,77 @@ const OverallReport: React.FC<OverallReportProps> = ({
             </div>
           </div>
 
-          {/* 3. Matrix */}
+          {/* 3. Matrix (Fully Replicated) */}
           <div className="border rounded-xl overflow-hidden mb-6">
             <table className="w-full text-xs text-left">
               <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
                 <tr>
                   <th className="px-4 py-2 border-r border-gray-200">{t('comparison.matrix_header')}</th>
-                  {compClasses.map(cls => <th key={cls} className="px-4 py-2 text-center">{cls}</th>)}
+                  {compClasses.map((cls, idx) => (
+                    <th key={cls} className="px-4 py-2 text-center border-r border-gray-200">
+                       <span className="inline-block w-4 h-4 rounded text-[9px] leading-4 text-white mr-1" style={{ backgroundColor: comparisonData.colors[idx % comparisonData.colors.length] }}>{idx + 1}</span>
+                       {cls}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 <tr className="bg-blue-50/20">
                   <td className="px-4 py-2 font-black text-blue-600 border-r border-blue-100">{t('comparison.matrix_total_avg')}</td>
-                  {comparisonData.stats.map((s, idx) => <td key={idx} className={`px-4 py-2 text-center font-bold`}>{s.average}</td>)}
+                  {comparisonData.stats.map((s, idx) => {
+                    const isMax = s.average === comparisonData.leaderboard.highestAvg.average;
+                    return (
+                      <td key={idx} className={`px-4 py-2 text-center ${isMax ? 'font-black text-amber-600 bg-amber-50' : 'font-bold'}`}>
+                        {s.average}
+                        {isMax && <Star className="w-3 h-3 inline ml-1 fill-current" />}
+                      </td>
+                    );
+                  })}
                 </tr>
+
+                {/* Subject Header */}
+                <tr className="bg-gray-50/50">
+                   <td colSpan={compClasses.length + 1} className="px-4 py-1 text-[9px] font-black text-gray-500 uppercase tracking-widest">{t('comparison.matrix_subject_avg')}</td>
+                </tr>
+
+                {/* Subject Rows */}
                 {comparisonData.subjectMatrix.map((row, rowIdx) => (
                   <tr key={rowIdx}>
                     <td className="px-4 py-2 font-bold text-gray-700 border-r border-gray-100">{row.name}</td>
-                    {compClasses.map((cls, colIdx) => <td key={colIdx} className={`px-4 py-2 text-center ${row[cls] === comparisonData.rowMaxMap[row.name] ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-500'}`}>{row[cls]}</td>)}
+                    {compClasses.map((cls, colIdx) => {
+                      const val = row[cls] || 0;
+                      const isMax = val === comparisonData.rowMaxMap[row.name] && val > 0;
+                      return (
+                        <td key={colIdx} className={`px-4 py-2 text-center ${isMax ? 'bg-emerald-50 text-emerald-700 font-black' : 'text-gray-500'}`}>
+                          {val || '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+
+                {/* Rank Header */}
+                <tr className="bg-gray-50/50">
+                   <td colSpan={compClasses.length + 1} className="px-4 py-1 text-[9px] font-black text-gray-500 uppercase tracking-widest">{t('comparison.matrix_rank_dist')}</td>
+                </tr>
+
+                {/* Rank Rows */}
+                {comparisonData.rankMatrix.map((row, rowIdx) => (
+                  <tr key={rowIdx}>
+                    <td className="px-4 py-2 font-medium text-gray-600 border-r border-gray-100">{row.name} {t('comparison.count')}</td>
+                    {compClasses.map((cls, colIdx) => {
+                      const val = row[cls] || 0;
+                      const isMax = val === comparisonData.rowMaxMap[row.name] && val > 0;
+                      return (
+                        <td key={colIdx} className={`px-4 py-2 text-center ${isMax ? 'bg-indigo-50 text-indigo-700 font-black' : 'text-gray-400'}`}>
+                          {val > 0 ? (
+                            <span className={`inline-block px-2 rounded-full text-[10px] ${isMax ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                              {val}
+                            </span>
+                          ) : '-'}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -218,7 +281,9 @@ const OverallReport: React.FC<OverallReportProps> = ({
                   <XAxis dataKey="name" stroke="#475569" fontSize={9} />
                   <YAxis stroke="#475569" fontSize={9} />
                   {compClasses.map((cls, idx) => (
-                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                      <LabelList dataKey={cls} position="top" fontSize={8} fill={comparisonData.colors[idx % comparisonData.colors.length]} formatter={(val: number) => val > 0 ? val : ''} />
+                    </Bar>
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -231,7 +296,9 @@ const OverallReport: React.FC<OverallReportProps> = ({
                   <XAxis dataKey="name" stroke="#475569" fontSize={9} />
                   <YAxis stroke="#475569" fontSize={9} />
                   {compClasses.map((cls, idx) => (
-                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                    <Bar key={cls} dataKey={cls} fill={comparisonData.colors[idx % comparisonData.colors.length]} radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                      <LabelList dataKey={cls} position="top" fontSize={8} fill={comparisonData.colors[idx % comparisonData.colors.length]} formatter={(val: number) => val > 0 ? val : ''} />
+                    </Bar>
                   ))}
                 </BarChart>
               </ResponsiveContainer>
