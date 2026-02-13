@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, Target, Zap, ShieldAlert, Minus } from 'lucide-react';
+import { Filter, GraduationCap, TrendingUp, TrendingDown, Table as TableIcon, Flame, Target, Zap, ShieldAlert, Minus, Info } from 'lucide-react';
 import { StudentRecord } from '../types';
 import { ChartContainer, SearchInput, SelectInput } from './SharedComponents';
 import * as AnalysisEngine from '../utils/analysisUtils';
@@ -31,7 +32,7 @@ interface StudentDetailViewProps {
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ 
   studentSearchTerm, setStudentSearchTerm, classFilter, setClassFilter, classes, selectableStudents, selectedStudentId, setSelectedStudentId, selectedStudent, subjects, gradeAveragesByPeriod, allHistoricalRanks, allClassHistoricalRanks, allSubjectRanks, thresholds, thresholdType, totalStudents, selectedPeriod, periodData
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [radarBaseline, setRadarBaseline] = useState<'class' | 'grade'>('class');
   const [selectedSubjectForTrend, setSelectedSubjectForTrend] = useState<string>(subjects[0] || '');
 
@@ -323,10 +324,17 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
           </div>
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><TableIcon className="w-4 h-4" /> {t('student.ledger_title')}</h3>
                 <p className="text-[10px] text-gray-400 mt-1 italic">{t('student.ledger_note')}</p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-[10px]">
+                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-purple-100 border border-purple-200"></div><span className="text-purple-900 font-bold">清北/顶尖</span></div>
+                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-green-100 border border-green-200"></div><span className="text-green-900 font-bold">C9/卓越</span></div>
+                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200"></div><span className="text-blue-900 font-bold">高分/优秀</span></div>
+                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200"></div><span className="text-yellow-900 font-bold">特控/达标</span></div>
+                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-50 border border-red-100"></div><span className="text-red-700 font-bold">未达标</span></div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -336,7 +344,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                     <th className="px-8 py-5 whitespace-nowrap">{t('student.ledger_period')}</th>
                     {subjects.flatMap(s => [
                       <th key={s} className="px-8 py-5 text-center">{s}</th>,
-                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}{t('common.rank')}</th>
+                      <th key={`${s}-rank`} className="px-4 py-5 text-center text-gray-400 font-medium">{s.substring(0, 1)}{language === 'zh' ? '名' : ' Rank'}</th>
                     ])}
                     <th className="px-8 py-5 text-indigo-600 text-right">{t('student.ledger_total')}</th>
                     <th className="px-8 py-5 text-blue-600 text-center">{t('student.ledger_class_rank')}</th>
