@@ -1,5 +1,6 @@
 {
   "name": "EduAnalytics Pro",
   "description": "Professional student performance analysis with full exam data lifecycle management and deep academic insights.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

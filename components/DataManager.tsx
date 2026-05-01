@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Database, Plus, Trash2, GripVertical, AlertTriangle, CheckCircle2, FileSpreadsheet, Layers, Users, TrendingUp, Award, Info, X, BarChart, ChevronRight } from 'lucide-react';
+import { Database, Plus, Trash2, GripVertical, AlertTriangle, CheckCircle2, FileSpreadsheet, Layers, Users, TrendingUp, Award, Info, X, BarChart, ChevronRight, Square, CheckSquare } from 'lucide-react';
 import { AnalysisState, ExamEntity } from '../types';
 import ImportWizard from './ImportWizard';
 import { useTranslation } from '../context/LanguageContext';
@@ -18,11 +18,13 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
   const [selectedExamName, setSelectedExamName] = useState<string | null>(null);
   
   const [exams, setExams] = useState<ExamEntity[]>([]);
+  const [selectedExamNames, setSelectedExamNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!initialData || initialData.students.length === 0) {
       setExams([]);
       setSelectedExamName(null);
+      setSelectedExamNames(new Set());
       return;
     }
     const allPeriods: string[] = Array.from(new Set(initialData.students.flatMap(s => s.history.map(h => h.period))));
@@ -101,6 +103,10 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
       setSelectedExamName(null);
     }
 
+    const newSelected = new Set(selectedExamNames);
+    newSelected.delete(examName);
+    setSelectedExamNames(newSelected);
+
     if (newStudents.length === 0) {
       onDataUpdated(null);
     } else {
@@ -120,6 +126,62 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
   const handleImportComplete = (newState: AnalysisState) => {
     onDataUpdated(newState);
     setShowWizard(false);
+  };
+
+  const toggleSelectExam = (examName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelected = new Set(selectedExamNames);
+    if (newSelected.has(examName)) {
+      newSelected.delete(examName);
+    } else {
+      newSelected.add(examName);
+    }
+    setSelectedExamNames(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedExamNames.size === exams.length) {
+      setSelectedExamNames(new Set());
+    } else {
+      setSelectedExamNames(new Set(exams.map(e => e.name)));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedExamNames.size === 0) return;
+    
+    if (!confirm(t('manager.batch_delete_confirm').replace('{count}', selectedExamNames.size.toString()))) return;
+
+    if (!initialData) return;
+
+    const newStudents = initialData.students.map(s => ({
+      ...s,
+      history: s.history.filter(h => !selectedExamNames.has(h.period))
+    })).filter(s => s.history.length > 0);
+
+    if (selectedExamName && selectedExamNames.has(selectedExamName)) {
+      setSelectedExamName(null);
+    }
+    
+    setSelectedExamNames(new Set());
+
+    if (newStudents.length === 0) {
+      onDataUpdated(null);
+    } else {
+      const rawClasses = [...new Set(newStudents.map(s => s.class))] as string[];
+      // Get subjects from remaining history items
+      const allHistoryItems = newStudents.flatMap(s => s.history);
+      const newSubjects = allHistoryItems.length > 0 
+        ? [...new Set(allHistoryItems.flatMap(h => Object.keys(h.scores)))]
+        : [];
+      
+      onDataUpdated({
+        ...initialData,
+        students: newStudents,
+        classes: AnalysisEngine.sortClasses(rawClasses),
+        subjects: newSubjects
+      });
+    }
   };
 
   const selectedExamStats = useMemo(() => {
@@ -205,10 +267,38 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
 
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                      <Layers className="w-4 h-4" /> {t('manager.timeline_title')}
-                    </h3>
-                    <span className="text-[10px] font-bold text-gray-400">{exams.length} {t('manager.records')}</span>
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={toggleSelectAll}
+                        className="flex items-center gap-2 group"
+                      >
+                        {selectedExamNames.size === exams.length && exams.length > 0 ? (
+                          <CheckSquare className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors" />
+                        )}
+                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                           {t('manager.timeline_title')}
+                        </h3>
+                      </button>
+                    </div>
+                    
+                    {selectedExamNames.size > 0 ? (
+                      <div className="flex items-center gap-4 animate-in fade-in slide-in-from-right-2 duration-300">
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                          {t('manager.selected_count').replace('{count}', selectedExamNames.size.toString())}
+                        </span>
+                        <button 
+                          onClick={handleBatchDelete}
+                          className="flex items-center gap-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          {t('manager.btn_delete_selected')}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-400">{exams.length} {t('manager.records')}</span>
+                    )}
                   </div>
                   <div className="divide-y divide-gray-50">
                     {exams.map((exam, index) => (
@@ -219,7 +309,7 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
                         onDragOver={(e) => handleDragOver(e, index)}
                         onDrop={() => handleDrop(index)}
                         onClick={() => setSelectedExamName(exam.name)}
-                        className={`p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group cursor-pointer ${draggedIndex === index ? 'opacity-40 bg-gray-100' : ''} ${selectedExamName === exam.name ? 'bg-blue-50/50 border-l-4 border-l-blue-600' : ''}`}
+                        className={`p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group cursor-pointer ${draggedIndex === index ? 'opacity-40 bg-gray-100' : ''} ${selectedExamName === exam.name ? 'bg-blue-50/50 border-l-4 border-l-blue-600' : ''} ${selectedExamNames.has(exam.name) ? 'bg-blue-50/20' : ''}`}
                       >
                         <div className="flex items-center gap-4">
                           <div 
@@ -228,6 +318,18 @@ const DataManager: React.FC<DataManagerProps> = ({ initialData, onDataUpdated })
                           >
                             <GripVertical className="w-5 h-5 text-gray-400" />
                           </div>
+                          
+                          <button 
+                            onClick={(e) => toggleSelectExam(exam.name, e)}
+                            className="p-1 rounded-md transition-colors hover:bg-white"
+                          >
+                            {selectedExamNames.has(exam.name) ? (
+                              <CheckSquare className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <Square className="w-5 h-5 text-gray-300 group-hover:text-blue-400" />
+                            )}
+                          </button>
+
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black transition-colors ${selectedExamName === exam.name ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                             {index + 1}
                           </div>
